@@ -1,0 +1,497 @@
+# KICH BAN KY THUAT DAY DU
+## Đồ án: Tracking E-Mails and Investigating E-Mail Crime
+### "Cái Bẫy Hoàn Hảo" — Phishing → BEC Fraud → Digital Forensics
+
+---
+
+## THONG TIN MOI TRUONG LAB
+
+| Node | IP | Role | OS |
+|---|---|---|---|
+| 107 dmz-mail | 10.71.119.51 | Mail Server (iRedMail 1.8.1) | Ubuntu 24.04 LXC |
+| 101 dmz-nginx | TBD | GoPhish + Landing Page | Ubuntu LXC |
+| 103 mgmt-wazuh | TBD | SIEM (Wazuh) | Ubuntu VM |
+| 100 srv-ubuntu | TBD | Victim simulation | Ubuntu LXC |
+| 113 jump-kali | TBD | Forensics Analyst | Kali Linux VM |
+| 102 fw-pfsense | TBD | External Firewall | pfSense |
+
+### Mail Accounts
+
+| Account | Email | Password | Role |
+|---|---|---|---|
+| postmaster | postmaster@sakuratech.local | Intern#2026 | Admin |
+| linhntt | linhntt@sakuratech.local | Victim@2026! | Victim — Chị Linh |
+| ducmh | ducmh@sakuratech.local | CEO@2026! | CEO giả — Huỳnh Minh |
+
+### URLs
+
+| Service | URL |
+|---|---|
+| iRedAdmin | https://10.71.119.51/iredadmin |
+| Roundcube Webmail | https://10.71.119.51/mail |
+| GoPhish Admin | https://10.71.119.51:3333 (sau khi cài) |
+
+---
+
+## PHASE 1 — EMAIL PHISHING (Ngày 1, 09:00)
+
+### Muc tieu
+Gui email phishing tu domain gia `sakura-vendor.com` (typosquat cua `sakura-vendor.net`) den chi Linh, kem link dan den trang gia mao.
+
+### Ky thuat su dung
+- MITRE T1566.002 — Spearphishing Link
+- Domain typosquatting — sakura-vendor**.com** thay vi **.net**
+- Email spoofing — From header gia mao
+- Social engineering — Urgent language, impersonation CEO
+
+### Setup GoPhish tren 101
+
+```bash
+# SSH vao 101
+cd /tmp
+wget https://github.com/gophish/gophish/releases/download/v0.12.1/gophish-v0.12.1-linux-64bit.zip
+apt install -y unzip
+unzip gophish-v0.12.1-linux-64bit.zip -d /opt/gophish
+chmod +x /opt/gophish/gophish
+cd /opt/gophish
+
+# Chinh config.json — cho phep truy cap tu ngoai
+sed -i 's/127.0.0.1:3333/0.0.0.0:3333/' config.json
+
+# Chay GoPhish
+./gophish &
+```
+
+Truy cap GoPhish admin: `https://<IP_101>:3333`
+- Default login: `admin / gophish`
+
+### Cau hinh GoPhish
+
+**Sending Profile:**
+```
+Name: Sakura Vendor Fake
+From: support@sakura-vendor.com
+Host: 10.71.119.51:25  (mail server 107)
+```
+
+**Email Template:**
+```
+Subject: [KHAN] Nang cap he thong thanh toan — Xac nhan ngay
+From: "Sakura Vendor Support" <support@sakura-vendor.com>
+
+Kinh gui {{.FirstName}},
+
+He thong thanh toan cua chung toi vua duoc nang cap bao mat.
+Vui long dang nhap de xac nhan tai khoan truoc 17:00 hom nay.
+
+[XAC NHAN NGAY] → {{.URL}}
+
+Tran trong,
+Sakura Vendor Support Team
+```
+
+**Landing Page:**
+Trang hien ra sau khi victim click (xem lab/gophish/landing_pages/)
+
+### Dau vet sinh ra (IOC Phase 1)
+
+| Log Source | Noi dung | Forensic Value |
+|---|---|---|
+| Postfix mail log | Email tu sakura-vendor.com di vao | Sender IP, timestamp |
+| SPF check | FAIL — domain khong authorize | Xac nhan email gia |
+| DKIM check | FAIL — khong co signature | Xac nhan email gia |
+| DMARC check | NONE — domain chua cau hinh | Red flag |
+| Wazuh alert | Rule 31101 — suspicious email | Alert dau tien |
+
+---
+
+## PHASE 2 — USER INTERACTION (Ngày 1, 09:15)
+
+### Muc tieu
+Chi Linh click link trong email → trang canh bao hien ra → GoPhish log lai hanh dong.
+
+### Ky thuat su dung
+- MITRE T1566.002 — User clicks phishing link
+- Tracking pixel — Ghi lai IP, timestamp khi email duoc mo
+- GoPhish campaign tracking — Log click event
+
+### Simulate tu may victim (100 srv-ubuntu)
+
+```bash
+# Cai browser headless de simulate victim click
+apt install -y curl
+
+# Simulate mo email (tracking pixel fired)
+curl -s "http://<IP_101>/track/open?rid=<campaign_id>" > /dev/null
+
+# Simulate click link
+curl -s "http://<IP_101>/track/click?rid=<campaign_id>" > /dev/null
+```
+
+### Dau vet sinh ra (IOC Phase 2)
+
+| Log Source | Noi dung | Forensic Value |
+|---|---|---|
+| GoPhish log | Email opened — IP victim, timestamp | Xac nhan nan nhan mo email |
+| GoPhish log | Link clicked — IP victim, user-agent | Xac nhan nan nhan click |
+| DNS log (pfSense) | Query den domain las login-sakura-vendor.com | Truy vet domain phishing |
+| Nginx access log (101) | GET request tu IP victim | Timeline click |
+| Wazuh alert | DNS query to suspicious domain | Alert tu dong |
+
+---
+
+## PHASE 3 — ACCOUNT COMPROMISE (Ngày 1, 10:30)
+
+### Muc tieu
+Simulate attacker dang nhap mailbox chi Linh tu IP nuoc ngoai.
+
+### Ky thuat su dung
+- MITRE T1078 — Valid Accounts
+- Impossible Travel — Login VN luc 09:15, login "Dong Au" luc 10:30
+
+### Script simulate tren 100 srv-ubuntu
+
+```bash
+# Simulate login binh thuong tu IP noi bo (victim)
+curl -k -X POST https://10.71.119.51/mail \
+  -d "user=linhntt@sakuratech.local&pass=Victim@2026!" \
+  --header "X-Forwarded-For: 10.71.119.100" \
+  --header "User-Agent: Mozilla/5.0 (Windows NT 10.0)"
+
+# Simulate login attacker tu IP nuoc ngoai (inject vao log)
+logger -p auth.info -t dovecot \
+  "imap-login: Login: user=<linhntt@sakuratech.local>, \
+  method=PLAIN, rip=185.220.101.47, lip=10.71.119.51, \
+  mpid=1234, secured, session=<attacker_session>"
+```
+
+### Inject impossible travel log vao Wazuh
+
+```bash
+# Tao file log gia lap tren 107
+cat >> /var/log/dovecot.log << 'EOF'
+2024-01-15T10:30:02 imap-login: Login: user=<linhntt@sakuratech.local>, method=PLAIN, rip=185.220.101.47, lip=10.71.119.51, mpid=5678, secured
+EOF
+```
+
+### Dau vet sinh ra (IOC Phase 3)
+
+| Log Source | Noi dung | Forensic Value |
+|---|---|---|
+| Dovecot auth log | Login tu 185.220.101.47 | IP attacker |
+| Dovecot auth log | 2 sessions dong thoi | Impossible travel |
+| Wazuh alert | Rule 18152 — multiple sessions | Alert tu dong |
+| GeoIP lookup | 185.220.101.47 → Dong Au (Tor exit) | Vi tri attacker |
+
+---
+
+## PHASE 4 — PERSISTENCE (Ngày 1, 11:00)
+
+### Muc tieu
+Attacker tao mail rule an: auto-forward email chua tu khoa tai chinh ra ngoai.
+
+### Ky thuat su dung
+- MITRE T1114.003 — Email Forwarding Rule
+- MITRE T1564.008 — Email Hiding Rules
+
+### Tao mail rule qua Roundcube
+
+Dang nhap Roundcube bang account linhntt → Settings → Filters → New Filter:
+
+```
+Filter name: system-update (ten an)
+Condition: Subject contains "thanh toan" OR "chuyen khoan" OR "ngan hang"
+Action: Forward to attacker@protonmail.com
+        Mark as read
+        Move to Trash
+```
+
+### Dau vet sinh ra (IOC Phase 4)
+
+| Log Source | Noi dung | Forensic Value |
+|---|---|---|
+| Dovecot sieve log | New filter created | Thoi diem tao rule |
+| Postfix log | Forward den external email | Domain attacker |
+| Wazuh alert | Mailbox rule change | Alert tu dong |
+| iRedAdmin log | Settings changed by linhntt | Audit trail |
+
+---
+
+## PHASE 5 — BEC FRAUD (Ngày 3, 14:00)
+
+### Muc tieu
+Tu mailbox chi Linh, attacker gui email lua dao den phong tai chinh yeu cau chuyen khoan.
+
+### Ky thuat su dung
+- MITRE T1586.002 — Compromise Email Accounts
+- Business Email Compromise (BEC) — Gui tu email that
+
+### Gui email BEC qua Roundcube (dang nhap bang account linhntt)
+
+```
+To: phongketoan@sakuratech.local
+Subject: [KHAN] Cap nhat thong tin ngan hang nha cung cap ABC
+From: linhntt@sakuratech.local (email that!)
+
+Gui phong ke toan,
+
+Nha cung cap ABC vua thong bao doi so tai khoan ngan hang.
+Vui long cap nhat va chuyen khoan theo thong tin moi:
+
+Ngan hang: Vietcombank
+STK: 9876543210
+Chu TK: NGUYEN VAN A
+
+Can xu ly truoc EOD hom nay.
+
+Tran trong,
+Nguyen Thi Linh — Ke toan truong
+```
+
+### Dau vet sinh ra (IOC Phase 5)
+
+| Log Source | Noi dung | Forensic Value |
+|---|---|---|
+| Postfix SMTP log | Email gui tu linhntt, IP 185.220.101.47 | IP that cua attacker |
+| Roundcube log | Session tu IP nuoc ngoai | Xac nhan attacker gui |
+| Dovecot Sent folder | Email BEC trong Sent Items | Noi dung lua dao |
+| Wazuh alert | Outbound email tu foreign IP | Alert tu dong |
+
+---
+
+## PHASE 6 — COVERING TRACKS (Ngày 3, 14:30)
+
+### Muc tieu
+Attacker xoa bang chung trong mailbox chi Linh.
+
+### Ky thuat su dung
+- MITRE T1070.008 — Clear Mailbox Data
+
+### Hanh dong (qua Roundcube, session attacker)
+
+1. Xoa email canh bao bao mat tu he thong
+2. Xoa email BEC trong Sent Items
+3. Empty Trash folder
+
+### Dau vet sinh ra (IOC Phase 6)
+*Quan trong: Mailbox audit log KHONG THE xoa duoc*
+
+| Log Source | Noi dung | Forensic Value |
+|---|---|---|
+| Dovecot audit log | Delete events ghi nhan day du | Chain of custody |
+| Postfix log | Email da gui van con trong log | Khong the xoa |
+| Wazuh alert | Mass delete event | Alert tu dong |
+| iRedAdmin audit | Toan bo thao tac cua session | Timeline day du |
+
+---
+
+## QUY TRINH DIEU TRA TU KALI (113 jump-kali)
+
+### Buoc 1 — Thu thap chung cu
+
+```bash
+# SSH vao mail server
+ssh root@10.71.119.51
+
+# Export email goc (.eml)
+find /var/vmail/sakuratech.local/linhntt/ -name "*.eml" -newer /tmp/incident_time
+
+# Hash chung cu (chain of custody)
+md5sum suspicious_email.eml > suspicious_email.eml.md5
+sha256sum suspicious_email.eml > suspicious_email.eml.sha256
+
+# Collect logs
+cp /var/log/mail.log /tmp/evidence/
+cp /var/log/dovecot.log /tmp/evidence/
+cp /var/log/nginx/access.log /tmp/evidence/
+```
+
+### Buoc 2 — Phan tich Email Header
+
+```bash
+# Cai cong cu phan tich
+apt install -y emailheader
+
+# Parse header tu .eml file
+cat suspicious_email.eml | grep -A 50 "Received:"
+
+# Truy vet chuoi Received (doc tu duoi len)
+# Received: from mail.sakura-vendor.com (185.220.101.47)
+# → IP nguon that cua attacker
+```
+
+**Tool online de demo trong bao cao:**
+- Google Admin Toolbox: `toolbox.googleapps.com/apps/messageheader`
+- MXToolbox: `mxtoolbox.com/EmailHeaders.aspx`
+
+### Buoc 3 — Truy vet IP Attacker
+
+```bash
+# WHOIS lookup
+whois 185.220.101.47
+
+# GeoIP lookup
+curl https://ipinfo.io/185.220.101.47/json
+
+# Check reputation
+# Tra cuu tren VirusTotal, Cisco Talos, AbuseIPDB
+```
+
+**Ket qua dieu tra:**
+```
+IP: 185.220.101.47
+ASN: AS24940 (Hetzner Online)
+Country: Germany (DE)
+Type: Tor exit node
+Reputation: MALICIOUS (AbuseIPDB: 95% confidence)
+```
+
+### Buoc 4 — Kiem tra SPF/DKIM/DMARC
+
+```bash
+# Kiem tra SPF record cua domain gia
+dig TXT sakura-vendor.com
+
+# Kiem tra DKIM
+dig TXT default._domainkey.sakura-vendor.com
+
+# Kiem tra DMARC
+dig TXT _dmarc.sakura-vendor.com
+```
+
+**Ket qua:**
+```
+SPF:   FAIL — domain not authorized to send
+DKIM:  FAIL — no signature found
+DMARC: NONE — policy not configured
+```
+
+### Buoc 5 — Tai dung Timeline
+
+```
+[Ngay 1 — 09:00] Email phishing gui tu 185.220.101.47
+                  → sakura-vendor.com (typosquat)
+                  → SPF/DKIM/DMARC: FAIL
+
+[Ngay 1 — 09:15] linhntt@sakuratech.local mo email
+                  → Click link http://login-sakura-vendor.com
+                  → DNS query logged
+
+[Ngay 1 — 10:30] Login tu 185.220.101.47 vao mailbox linhntt
+                  → Impossible travel: VN (09:15) → EU (10:30)
+                  → 2 sessions dong thoi
+
+[Ngay 1 — 11:00] Mail rule tao: auto-forward tai chinh ra ngoai
+                  → Forward den attacker@protonmail.com
+
+[Ngay 3 — 14:00] Email BEC gui tu mailbox linhntt
+                  → IP nguon: 185.220.101.47 (khong phai noi bo)
+                  → Noi dung: yeu cau chuyen khoan
+
+[Ngay 3 — 14:30] Mass delete trong mailbox linhntt
+                  → Xoa evidence — nhung audit log van con
+```
+
+---
+
+## MITRE ATT&CK MAPPING
+
+| Phase | Technique ID | Technique Name |
+|---|---|---|
+| 1 | T1566.002 | Spearphishing Link |
+| 2 | T1598 | Phishing for Information |
+| 3 | T1078 | Valid Accounts |
+| 4 | T1114.003 | Email Forwarding Rule |
+| 4 | T1564.008 | Email Hiding Rules |
+| 5 | T1586.002 | Compromise Email Accounts |
+| 6 | T1070.008 | Clear Mailbox Data |
+
+---
+
+## IOC TONG HOP
+
+```
+# Domains
+sakura-vendor.com          (typosquat phishing sender)
+login-sakura-vendor.com    (phishing landing page)
+
+# IPs
+185.220.101.47             (attacker IP — Tor exit node, Germany)
+
+# Emails
+support@sakura-vendor.com  (phishing sender)
+attacker@protonmail.com    (forward destination)
+
+# Indicators
+SPF: FAIL on sakura-vendor.com
+DKIM: FAIL on sakura-vendor.com
+Impossible travel: VN → EU in 75 minutes
+Mail rule: auto-forward keywords tai chinh
+```
+
+---
+
+## WAZUH CUSTOM RULES
+
+Them vao `/var/ossec/etc/rules/local_rules.xml` tren Wazuh server:
+
+```xml
+<!-- Rule: Impossible Travel Detection -->
+<rule id="100001" level="12">
+  <if_sid>5501</if_sid>
+  <match>Login</match>
+  <regex>rip=185\.220\.101\.</regex>
+  <description>Suspicious login from known Tor exit node</description>
+  <group>authentication_failed,pci_dss_10.2.4,</group>
+</rule>
+
+<!-- Rule: Suspicious Mail Forward Rule -->
+<rule id="100002" level="10">
+  <if_sid>5501</if_sid>
+  <match>sieve</match>
+  <match>fileinto|redirect</match>
+  <description>New mail forwarding rule created</description>
+  <group>mail,suspicious,</group>
+</rule>
+
+<!-- Rule: BEC Detection — External IP sending internal mail -->
+<rule id="100003" level="14">
+  <if_sid>5501</if_sid>
+  <match>postfix/smtp</match>
+  <regex>from=.*sakuratech\.local.*relay=.*185\.220</regex>
+  <description>Internal email sent from external IP — possible BEC</description>
+  <group>mail,bec,high_severity,</group>
+</rule>
+```
+
+---
+
+## CHECKLIST HOAN THANH
+
+### Ky thuat
+- [x] iRedMail 1.8.1 cai tren 107
+- [x] User linhntt, ducmh tao xong
+- [x] Roundcube webmail hoat dong
+- [x] Gui/nhan email noi bo thanh cong
+- [ ] GoPhish cai tren 101
+- [ ] Landing page tracking
+- [ ] Wazuh agent tren 107
+- [ ] Script simulate Phase 3-6
+- [ ] Wazuh custom rules
+- [ ] Test toan bo kich ban end-to-end
+
+### Bao cao
+- [ ] Chuong 1 — Gioi thieu
+- [ ] Chuong 2 — Co so ly thuyet
+- [ ] Chuong 3 — Email Header
+- [ ] Chuong 4 — SPF/DKIM/DMARC
+- [ ] Chuong 5 — Toi pham email
+- [ ] Chuong 6 — Quy trinh forensics
+- [ ] Chuong 7 — Kich ban kiem thu
+- [ ] Chuong 8 — Thu thap chung cu
+- [ ] Chuong 9 — Phuong phap truy vet
+- [ ] Chuong 10 — Ket luan
+
+---
+
+*Last updated: 25/05/2026 — Lab environment: Proxmox 9.1.9 / ITLabThuduc*

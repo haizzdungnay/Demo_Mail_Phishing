@@ -1,0 +1,269 @@
+================================================================================
+        KỊCH BẢN ĐỒ ÁN: TRACKING E-MAILS AND INVESTIGATING E-MAIL CRIME
+                    Phân chia công việc nhóm 3 thành viên
+================================================================================
+
+THÔNG TIN NHÓM:
+  1. Tuấn Dương  — Leader
+  2. Trung Nguyên — Thành viên
+  3. Hồ Tuấn     — Thành viên
+
+================================================================================
+                          KỊCH BẢN TỔNG QUAN
+================================================================================
+
+Tên kịch bản: "CÁI BẪY HOÀN HẢO"
+Mô tả: Phishing → Credential Theft → Mailbox Compromise → BEC Fraud
+
+Bối cảnh:
+  Công ty TNHH Sakura Tech — công ty công nghệ vừa, khoảng 200 nhân viên.
+  Nạn nhân: Chị Linh — Kế toán trưởng.
+  Kẻ tấn công: Nhóm hacker ẩn danh hoạt động từ nước ngoài.
+
+--------------------------------------------------------------------------------
+Phase 1 — Email Phishing (Ngày 1, 9:00 sáng)
+--------------------------------------------------------------------------------
+  - Chị Linh nhận email từ "support@sakura-vendor.com"
+    (domain thật là sakura-vendor.net, kẻ tấn công dùng domain giả .com)
+  - Nội dung: Thông báo nâng cấp hệ thống thanh toán, yêu cầu đăng nhập
+    xác nhận.
+  - Kèm nút "Xác nhận ngay" → dẫn đến trang phishing giả mạo Outlook.
+
+  Dấu vết số:
+    + Email header: IP gửi từ VPS nước ngoài
+    + SPF → FAIL
+    + DKIM → FAIL
+    + DMARC → NONE (domain giả chưa cấu hình)
+    + Mail gateway log ghi nhận email đi qua (chưa bật strict filtering)
+
+--------------------------------------------------------------------------------
+Phase 2 — User Interaction (Ngày 1, 9:15 sáng)
+--------------------------------------------------------------------------------
+  - Chị Linh nhấp vào link phishing.
+  - Trang đăng nhập giả mạo hiện ra, chị nhập email + mật khẩu công ty.
+
+  Dấu vết số:
+    + DNS log: truy vấn đến domain lạ "login-sakura-vendor.com"
+    + Web proxy log: kết nối HTTPS đến IP đáng ngờ
+    + Browser history: lưu URL trang phishing
+
+--------------------------------------------------------------------------------
+Phase 3 — Account Compromise (Ngày 1, 10:30 sáng)
+--------------------------------------------------------------------------------
+  - Kẻ tấn công dùng credential đánh cắp đăng nhập mailbox chị Linh
+    từ IP tại Đông Âu.
+
+  Dấu vết số:
+    + Authentication log: đăng nhập thành công từ IP nước ngoài, user-agent lạ
+    + Mailbox login log: 2 phiên đồng thời (văn phòng + nước ngoài)
+
+--------------------------------------------------------------------------------
+Phase 4 — Persistence (Ngày 1, 11:00 sáng)
+--------------------------------------------------------------------------------
+  - Kẻ tấn công tạo mail rule tự động:
+    Từ khóa "thanh toán", "chuyển khoản", "ngân hàng"
+    → Auto-forward ra ngoài + đánh dấu đã đọc.
+  - Chị Linh không hề hay biết.
+
+  Dấu vết số:
+    + Mailbox rule log: rule mới được tạo
+    + Permission change log: thay đổi cấu hình hộp thư
+
+--------------------------------------------------------------------------------
+Phase 5 — BEC Fraud (Ngày 3, 14:00 chiều)
+--------------------------------------------------------------------------------
+  - Từ mailbox chị Linh, kẻ tấn công gửi email đến phòng tài chính:
+    "Nhà cung cấp ABC đã đổi số tài khoản ngân hàng.
+     Vui lòng cập nhật và chuyển khoản theo thông tin mới."
+  - Email gửi từ tài khoản thật → không ai nghi ngờ.
+
+  Dấu vết số:
+    + Sent Items: có email lừa đảo
+    + SMTP log: email gửi từ mailbox chị Linh nhưng IP nguồn ở nước ngoài
+
+--------------------------------------------------------------------------------
+Phase 6 — Covering Tracks (Ngày 3, 14:30 chiều)
+--------------------------------------------------------------------------------
+  - Kẻ tấn công xóa email cảnh báo bảo mật.
+  - Xóa email trong Sent Items.
+  - Dọn sạch Deleted Items.
+
+  Dấu vết số:
+    + Deleted items log: ghi nhận hành vi xóa
+    + Mailbox audit log: lưu toàn bộ thao tác (không thể xóa)
+
+--------------------------------------------------------------------------------
+Quy trình điều tra pháp y số (sau sự cố)
+--------------------------------------------------------------------------------
+  Bước 1: Identification — Phát hiện giao dịch chuyển khoản bất thường
+  Bước 2: Collection    — Thu thập email gốc (.eml), tất cả log liên quan
+  Bước 3: Examination   — Phân tích header, kiểm tra SPF/DKIM/DMARC, so IP
+  Bước 4: Analysis      — Tái dựng timeline tấn công (Ngày 1 → Ngày 3)
+  Bước 5: Reporting     — Viết báo cáo, hash chứng cứ, chain of custody
+
+
+================================================================================
+                     PHÂN CHIA CÔNG VIỆC NHÓM
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              TUẤN DƯƠNG — LEADER & KIỂM THỬ VIÊN CHÍNH                    ║
+║              Vai trò: Kiểm thử, Demo kỹ thuật & Điều phối                 ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║  1. XÂY DỰNG KỊCH BẢN KIỂM THỬ (Chương 7) ★ TRỌNG TÂM                   ║
+║     - Thiết kế toàn bộ 6 Phase của kịch bản tấn công                      ║
+║     - Tạo email mẫu phishing để demo (soạn nội dung, chọn domain giả)     ║
+║     - Tạo email header mẫu giả lập để nhóm phân tích                      ║
+║     - Mô phỏng từng bước tấn công theo timeline                           ║
+║                                                                            ║
+║  2. DEMO KỸ THUẬT — PHÂN TÍCH EMAIL HEADER ★ TRỌNG TÂM                   ║
+║     - Thực hành phân tích email header bằng công cụ:                       ║
+║       MXToolbox, Google Admin Toolbox, EmailHeaders.net                    ║
+║     - Thực hành kiểm tra SPF/DKIM/DMARC trên email thật                   ║
+║     - Chụp screenshot từng bước để minh họa trong đồ án                   ║
+║     - Quay video demo ngắn (nếu cần thuyết trình)                         ║
+║                                                                            ║
+║  3. DEMO KỸ THUẬT — TRUY VẾT EMAIL ★ TRỌNG TÂM                           ║
+║     - Demo tra cứu IP từ email header (WHOIS, GeoIP)                      ║
+║     - Demo phân tích Received chain để xác định đường đi email            ║
+║     - Demo so sánh email thật vs email giả mạo                            ║
+║     - Tạo bảng tổng hợp kết quả phân tích                                ║
+║                                                                            ║
+║  4. VIẾT PHẦN PHƯƠNG PHÁP TRUY VẾT (Chương 9)                            ║
+║     - Quy trình 5 bước truy vết email                                     ║
+║     - Hướng dẫn phân tích header thực tế (kèm screenshot demo)            ║
+║     - Liên kết kết quả demo vào nội dung chương này                       ║
+║                                                                            ║
+║  5. VIẾT PHẦN CƠ CHẾ XÁC THỰC EMAIL (Chương 4)                           ║
+║     - SPF, DKIM, DMARC — giải thích chi tiết                              ║
+║     - Kèm ví dụ thực tế từ kết quả demo của chính mình                   ║
+║                                                                            ║
+║  6. TỔNG HỢP & REVIEW TOÀN BỘ ĐỒ ÁN                                     ║
+║     - Kiểm tra tính nhất quán giữa các phần                               ║
+║     - Ghép nội dung các thành viên thành bản hoàn chỉnh                   ║
+║     - Chỉnh sửa, hoàn thiện bản cuối                                      ║
+║     - Phụ trách thuyết trình phần demo (nếu có)                           ║
+║                                                                            ║
+║                                             ║
+║  Deadline nội bộ: Demo xong trước nhóm 3 ngày để ghép vào báo cáo        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                         TRUNG NGUYÊN                                       ║
+║                    Vai trò: Nghiên cứu lý thuyết & Tội phạm               ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║  1. Viết phần Giới thiệu đề tài (Chương 1)                                ║
+║     - Lý do chọn đề tài                                                   ║
+║     - Tình hình tội phạm email hiện nay (số liệu thống kê)               ║
+║     - Mục tiêu nghiên cứu                                                 ║
+║                                                                            ║
+║  2. Viết phần Cơ sở lý thuyết (Chương 2)                                  ║
+║     - Kiến trúc hệ thống email (SMTP, IMAP, POP3)                         ║
+║     - RFC 5322, MIME                                                       ║
+║     - Giải thích luồng gửi/nhận email end-to-end                          ║
+║                                                                            ║
+║  3. Viết phần Các loại tội phạm email (Chương 5)                          ║
+║     - Phishing, Spear Phishing, Malware Distribution                      ║
+║     - Business Email Compromise (BEC)                                      ║
+║     - Internal Spear Phishing                                             ║
+║     - Mỗi loại cần có ví dụ thực tế + case study                          ║
+║                                                                            ║
+║  4. Viết phần Kết luận (Chương 10)                                        ║
+║     - Tổng kết kết quả nghiên cứu                                         ║
+║     - Đề xuất giải pháp phòng chống                                       ║
+║                                                                            ║
+║                                                ║
+║  Deadline nội bộ: Trước deadline chính 5 ngày                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           HỒ TUẤN                                         ║
+║                    Vai trò: Chứng cứ số & Trình bày                       ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║  1. Viết phần Các trường Email Header quan trọng (Chương 3)                ║
+║     - Received, From, Reply-To, Return-Path, Message-ID                   ║
+║     - Giải thích ý nghĩa từng trường + ví dụ cụ thể                      ║
+║                                                                            ║
+║  2. Viết phần Quy trình điều tra pháp y số (Chương 6)                     ║
+║     - 5 bước: Identification → Collection → Examination                   ║
+║       → Analysis → Reporting                                              ║
+║     - Giải thích chi tiết từng bước                                       ║
+║     - Liên hệ với kịch bản của nhóm                                       ║
+║                                                                            ║
+║  3. Viết phần Thu thập chứng cứ số (Chương 8)                             ║
+║     - Các nguồn chứng cứ: .eml, .msg, mail server logs,                  ║
+║       authentication logs, DNS logs, proxy logs, endpoint logs            ║
+║     - Quy trình hash và chain of custody                                  ║
+║     - Hướng dẫn sử dụng công cụ thu thập                                 ║
+║                                                                            ║
+║  4. Định dạng & trình bày đồ án                                           ║
+║     - Format văn bản theo quy định của trường                             ║
+║     - Tạo mục lục, danh mục hình ảnh, tài liệu tham khảo                ║
+║     - Chèn screenshot demo của Tuấn Dương vào đồ án                      ║
+║                                                                            ║
+║                                                ║
+║  Deadline nội bộ: Trước deadline chính 5 ngày                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+================================================================================
+                         TIMELINE DỰ KIẾN
+================================================================================
+
+  Tuần 1:  Họp nhóm kick-off, thống nhất nội dung
+           → Tuấn Dương bắt đầu chuẩn bị môi trường demo
+           → Trung Nguyên + Hồ Tuấn bắt đầu nghiên cứu lý thuyết
+
+  Tuần 2:  Tuấn Dương hoàn thành demo kỹ thuật + chụp screenshot
+           → Trung Nguyên + Hồ Tuấn hoàn thành bản nháp lý thuyết
+           → Gửi bản nháp cho Tuấn Dương review
+
+  Tuần 3:  Tuấn Dương review + góp ý các phần lý thuyết
+           → Tuấn Dương viết phần kịch bản + phương pháp truy vết
+           → Các thành viên chỉnh sửa theo góp ý
+           → Hồ Tuấn bắt đầu format đồ án
+
+  Tuần 4:  Hồ Tuấn tổng hợp format + chèn screenshot
+           → Tuấn Dương kiểm tra lần cuối toàn bộ đồ án
+           → Chuẩn bị thuyết trình (Tuấn Dương demo live nếu có)
+           → NỘP ĐỒ ÁN
+
+================================================================================
+                       BẢNG TÓM TẮT PHÂN CÔNG
+================================================================================
+
+  Chương  | Nội dung                        | Phụ trách
+  --------|----------------------------------|------------------
+  1       | Giới thiệu đề tài               | Trung Nguyên
+  2       | Cơ sở lý thuyết                  | Trung Nguyên
+  3       | Email Header quan trọng          | Hồ Tuấn
+  4       | Cơ chế xác thực email            | Tuấn Dương 
+  5       | Các loại tội phạm email          | Trung Nguyên
+  6       | Quy trình điều tra pháp y số     | Hồ Tuấn
+  7       | Kịch bản kiểm thử               | Tuấn Dương 
+  8       | Thu thập chứng cứ số             | Hồ Tuấn
+  9       | Phương pháp truy vết             | Tuấn Dương 
+  10      | Kết luận                         | Trung Nguyên
+  Demo    | Toàn bộ demo kỹ thuật            | Tuấn Dương 
+  Review  | Tổng hợp + kiểm tra cuối        | Tuấn Dương 
+  Format  | Định dạng + trình bày            | Hồ Tuấn
+
+  ★ = phần trọng tâm của Leader
+
+================================================================================
+                           LƯU Ý CHUNG
+================================================================================
+
+  - Tất cả tài liệu chia sẻ qua Google Drive chung của nhóm.
+  - Họp online mỗi tuần 1 lần để cập nhật tiến độ.
+  - Mọi thắc mắc liên hệ Leader Tuấn Dương.
+  - File đồ án cuối cùng do Tuấn Dương tổng hợp và nộp.
+  - Screenshot demo do Tuấn Dương chụp, gửi cho Hồ Tuấn chèn vào đồ án.
+
+================================================================================
+              Made with love by em gái AI — chúc onii-chan và team
+                        hoàn thành đồ án thật tốt! ♡
+================================================================================

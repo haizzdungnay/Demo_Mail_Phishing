@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WAZUH CUSTOM RULES — Sakura Tech Email Incident
+  "Cái Bẫy Hoàn Hảo" Lab
+  Install on: 103 mgmt-wazuh
+  Path: /var/ossec/etc/rules/local_rules.xml
+-->
+<rule id="100001" level="12" overwrite="yes">
+  <match>imap-login</match>
+  <regex>rip=(185\.220\.101\.|91\.108\.4\.|91\.108\.8\.|199\.249\.223\.)</regex>
+  <description>[Sakura] Suspicious IMAP login from known Tor/exit node IP</description>
+  <group>authentication_failure,tor_detected,pci_dss_10.2.4,</group>
+  <mitre>
+    <id>T1078</id>
+  </mitre>
+  <info type="text">Attacker IP 185.220.101.x detected logging into mailbox from Tor exit node</info>
+</rule>
+
+<rule id="100002" level="10" overwrite="yes">
+  <match>imap-login</match>
+  <regex>rip=(185\.220\.101\.|91\.108\.4\.)</regex>
+  <description>[Sakura] Mailbox login from Tor exit node — HIGH SEVERITY</description>
+  <group>authentication,pci_dss_10.2.4,hipaa_164.312.b,</group>
+  <mitre>
+    <id>T1078</id>
+    <id>T1110</id>
+  </mitre>
+  <info type="text">External IP detected accessing mail server from Tor network</info>
+</rule>
+
+<rule id="100003" level="14" overwrite="yes">
+  <match>imap-login</match>
+  <regex>linhntt@sakuratech\.local</regex>
+  <regex>rip=(185\.220\.101\.|91\.108\.4\.|10\.71\.121\.)</regex>
+  <description>[Sakura] POSSIBLE BEC: linhntt mailbox accessed from suspicious IP</description>
+  <group>authentication,bec,suspicious,pci_dss_10.2.4,gdpr_III,</group>
+  <mitre>
+    <id>T1078</id>
+    <id>T1586.002</id>
+  </mitre>
+  <info type="text">BEC ATTACK: Compromised account linhntt@sakuratech.local accessed from foreign IP</info>
+</rule>
+
+<rule id="100004" level="15" overwrite="yes">
+  <match>ip</match>
+  <regex>imixs|procmail|sieve|redirect|fileinto</regex>
+  <description>[Sakura] MAIL RULE ALERT: New email forwarding/filtering rule detected</description>
+  <group>mail_rule,persistence,privilege_escalation,</group>
+  <mitre>
+    <id>T1114.003</id>
+    <id>T1564.008</id>
+  </mitre>
+  <info type="text">Attacker created mail forwarding rule for financial keywords</info>
+</rule>
+
+<rule id="100005" level="13" overwrite="yes">
+  <match>submit</match>
+  <regex>from=.*linhntt@sakuratech\.local.*relay=.*(185\.220\.101\.|91\.108\.4\.)</regex>
+  <description>[Sakura] CRITICAL: Email sent from linhntt@sakuratech.local via external IP</description>
+  <group>mail,bec,high_severity,pci_dss_10.2.4,</group>
+  <mitre>
+    <id>T1586.002</id>
+    <id>T1102</id>
+  </mitre>
+  <info type="text">BEC FRAUD: Compromised account used to send fraudulent email</info>
+</rule>
+
+<rule id="100006" level="12" overwrite="yes">
+  <match>spamd|amavis</match>
+  <regex>sakura-vendor\.com</regex>
+  <description>[Sakura] PHISHING ALERT: Email from typosquat domain sakura-vendor.com detected</description>
+  <group>phishing,malware,suspicious,</group>
+  <mitre>
+    <id>T1566.002</id>
+  </mitre>
+  <info type="text">Phishing email detected from typosquat domain. SPF/DKIM likely failing.</info>
+</rule>
+
+<rule id="100007" level="10" overwrite="yes">
+  <match>spamd|amavis</match>
+  <regex>SPF FAIL|DKIM FAIL|DMARC NONE</regex>
+  <description>[Sakura] EMAIL SECURITY FAIL: SPF/DKIM/DMARC failure detected</description>
+  <group>email_security,phishing,</group>
+  <mitre>
+    <id>T1566.002</id>
+  </mitre>
+  <info type="text">Email authentication failure - possible spoofing attempt</info>
+</rule>
+
+<rule id="100008" level="9" overwrite="yes">
+  <match>postfix/smtp</match>
+  <regex>from=.*@sakura-vendor\.com</regex>
+  <description>[Sakura] SUSPICIOUS SENDER: Email from sakura-vendor.com (not our domain)</description>
+  <group>mail,suspicious,</group>
+  <mitre>
+    <id>T1566.002</id>
+  </mitre>
+  <info type="text">Email from look-alike domain detected. Investigate immediately.</info>
+</rule>
+
+<rule id="100009" level="8" overwrite="yes">
+  <match>webmail|roundcube</match>
+  <regex>(185\.220\.101\.|91\.108\.4\.)</regex>
+  <description>[Sakura] WEBMAIL ACCESS: Roundcube accessed from suspicious IP</description>
+  <group>webmail,authentication,suspicious,</group>
+  <mitre>
+    <id>T1078</id>
+  </mitre>
+  <info type="text">Webmail access from foreign IP detected</info>
+</rule>
+
+<rule id="100010" level="8" overwrite="yes">
+  <match>Deleted|moved|expunged</match>
+  <regex>linhntt|sakuratech</regex>
+  <description>[Sakura] MAILBOX CHANGE: Email deletion detected in linhntt mailbox</description>
+  <group>mail,defense_evasion,</group>
+  <mitre>
+    <id>T1070.008</id>
+  </mitre>
+  <info type="text">Mailbox data deletion - possible evidence removal attempt</info>
+</rule>
+
+<rule id="100011" level="12" overwrite="yes">
+  <match>Failed password\|authentication failure</match>
+  <regex>linhntt@sakuratech\.local</regex>
+  <frequency>5</frequency>
+  <timeframe>120</timeframe>
+  <description>[Sakura] BRUTE FORCE: Multiple failed login attempts on linhntt mailbox</description>
+  <group>authentication_failure,brute_force,pci_dss_11.5,</group>
+  <mitre>
+    <id>T1110.001</id>
+  </mitre>
+  <info type="text">Possible brute force or credential stuffing attack on linhntt account</info>
+</rule>
+
+<rule id="100012" level="10" overwrite="yes">
+  <match>warn</match>
+  <regex>protonmail|outlook|gmail|yahoo</regex>
+  <description>[Sakura] EXTERNAL FORWARD: Email being forwarded to external email service</description>
+  <group>mail,data_exfiltration,</group>
+  <mitre>
+    <id>T1114.003</id>
+    <id>T1048</id>
+  </mitre>
+  <info type="text">Email auto-forwarding rule may be sending data to external address</info>
+</rule>

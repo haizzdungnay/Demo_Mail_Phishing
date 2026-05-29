@@ -1,0 +1,110 @@
+# ============================================================
+# DISCLAIMER — DOC LAP TRINH KIEM THU XAM NHAP
+# ============================================================
+
+## CAM ON DA DOC DISCLAIMER NAY
+
+Truoc khi su dung he thong "Cai Bay Hoan Hao" (PhishLab), ban can doc va chap thuan TAT CA cac dieu khoan ben duoi.
+
+---
+
+## 1. MUC DICH SU DUNG
+
+He thong nay chi duoc phep su dung cho:
+
+### Muc dich hop phap:
+- **Kiem thu xam nhap phep (Authorized Penetration Testing)**: Thu nghiem tren he thong ban co quyen kiem thu
+- **Dao tao nhan dien phishing**: Dao tao nhan vien nhan biet email lua dao trong moi truong duoc kiem soat
+- **Do luong nang luc**: Danh gia kha nang nhan biet cua nhan vien
+- **Hoc tap trong lop hoc**: Su dung trong cac bai giang ve an ninh mang, ky thuat so
+
+### Tuyet doi khong duoc:
+- **Xam nhap he thong khong phep**: Khong bao gio su dung de truy cap he thong ma ban khong co quyen
+- **Gui email phishing ra ngoai**: Khong gui bat ky email phishing nao ra ngoai mang noi bo cua ban
+- **Thu thap thong tin nhan thuc**: Khong su dung de thu thap mat khau, thong tin ca nhan cua nguoi khac
+- **Che bien hoac ban phat**: Khong chia se ma nguon hoac cong cu nay cho nguoi khong phep su dung
+- **Tro thanh vu khi tan cong**: Khong su dung de khoi phat hoac thuc hien bat ky cuoc tan cong thuc su nao
+
+---
+
+## 2. CANH BAO PHAP LY
+
+### Viet Nam:
+- **Luat CNTT 2023**: Cac hoat dong xam nhap trai phep, can tro he thong, xu ly trai phep du lieu dang nhap co the bi truy to hinh su theo Luat An ninh mang 2015 (Bo sung 2023).
+- **Hinh phat**: Phat tu 50 trieu dong den 200 trieu dong hoac cam tu 1-3 nam doi voi cac hanh vi xam nhap trai phep.
+
+### Quoc te:
+- Nhieu quoc gia co cac luat tuong tu. Ban co trach nhiem tuyen chon va tu lam theo quy dinh cua luat dia phuong.
+
+---
+
+## 3. DIEU KIEN TRIEN KHAI
+
+### Bat buoc:
+- [ ] Chi trien khai trong mang noi bo co phep (internal network)
+- [ ] Co phep bang văn ban tu nguoi co tham quyen (IT manager, CIO, CEO)
+- [ ] Chi nhan vien da duoc thong bao truoc (voi muc dich dao tao)
+- [ ] Xoa toan bo du lieu sau khi ket thuc kiem thu
+- [ ] Co nhan vien giam sat trong suot qua trinh
+
+### Khong bao gio:
+- [ ] Khong ket noi voi mang Internet cho phishing server
+- [ ] Khong gui email ra ngoai mang noi bo
+- [ ] Khong su dung ten miên thuc (dang ky ten giong ten to chuc)
+- [ ] Khong gia lap to chuc khac (tru khi co phep)
+- [ ] Khong de server phishing biet duoc vi tri that (air-gapped hoac isolated VLAN)
+
+---
+
+## 4. TRACH NHIEM
+
+Nguoi su dung (ban) chiu trach nhiem hoan toan ve:
+
+- **Tinh hop phap**: Dam bao ban co quyen phap ly de su dung he thong nay
+- **Sao luu du lieu**: Sao luu tat ca du lieu truoc khi su dung (co the bi mat trong qua trinh kiem thu)
+- **Xoa du lieu**: Xoa toan bo du lieu phishing sau khi ket thuc
+- **Thong bao**: Thong bao cho nhan vien ve kiem thu phishing (neu la chuong trinh dao tao)
+- **Bao ve he thong**: Dam bao he thong duoc cau hinh an toan va khong bi lo ra ngoai
+
+---
+
+## 5. LOAI TRU TRACH NHIEM
+
+Tac gia/nguoi tao ra he thong nay KHONG chiu trach nhiem ve:
+
+- Bat ky hau qua nao do su dung sai muc dich
+- Mat mat du lieu do su dung he thong nay
+- Cac van de phap ly phat sinh tu viec su dung trai phep
+- Su dung ma nguon de tan cong bat ky he thong nao
+
+---
+
+## 6. CAM KET
+
+Bang cach su dung he thong nay, ban cam ket:
+
+1. Ban da doc va hieu day du noi dung DISCLAIMER nay
+2. Ban se su dung he thong chi cho muc dich hop phap
+3. Ban co quyen phap ly de thuc hien kiem thu tren he thong muc tieu
+4. Ban se xoa toan bo du lieu sau khi ket thuc kiem thu
+5. Ban se tu chiu trach nhiem ve bat ky van de phap ly phat sinh
+
+---
+
+## 7. LIEN HE
+
+Neu ban co bat ky thac mac nao ve tinh hop phap cua viec su dung, vui long lien he:
+
+- Pho phong CNTT cua ban
+- Ban quan tri mang (IT Department)
+- Tu van phap ly chuyen nganh an ninh mang
+
+---
+
+**LUU Y**: Bat cu viec su dung nao trai voi cac dieu khoan nay deu co the dan den hau qua phap ly nghiem trong.
+
+Doc va chap thuan truoc khi tiep tuc.
+
+---
+*He thong "Cai Bay Hoan Hao" — Chi phuc vu muc dich dao tao va kiem thu phep*
+*Phat trien boi: Tuấn Duong (Leader), Trung Nguyen, Ho Tuan*

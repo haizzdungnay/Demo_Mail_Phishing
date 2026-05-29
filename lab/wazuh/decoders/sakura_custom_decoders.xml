@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WAZUH CUSTOM DECODERS — Sakura Tech
+  "Cái Bẫy Hoàn Hảo" Lab
+  Install on: 103 mgmt-wazuh
+  Path: /var/ossec/etc/decoders/local_decoders.xml
+-->
+<decoder name="dovecot-imap">
+  <program_name>dovecot</program_name>
+  <prematch>^imap-login:</prematch>
+</decoder>
+
+<decoder name="dovecot-login-info">
+  <parent>dovecot-imap</parent>
+  <regex>^imap-login: (Info|notice):\s*Login:\s*user=&lt;(\S+)&gt;,\s*method=(\S+),\s*rip=(\S+),\s*lip=(\S+)</regex>
+  <order>user, method, srcip, dstip</order>
+</decoder>
+
+<decoder name="postfix-smtp">
+  <program_name>postfix/smtp</program_name>
+  <prematch>^postfix/smtp</prematch>
+</decoder>
+
+<decoder name="postfix-smtp-from">
+  <parent>postfix-smtp</parent>
+  <regex>from=(\S+)\s*from=&lt;(\S+)&gt;\s*relay=(\S+)</regex>
+  <order>from_address, from_user, relay</order>
+</decoder>
+
+<decoder name="amavis-phishing">
+  <program_name>amavis</program_name>
+  <prematch>^\d{4}-\d{2}-\d{2}</prematch>
+</decoder>
+
+<decoder name="amavis-spf-dkim">
+  <parent>amavis-phishing</parent>
+  <regex>SPF=(\w+),\s*DKIM=(\w+),\s*DMARC=(\w+)</regex>
+  <order>spf_result, dkim_result, dmarc_result</order>
+</decoder>
+
+<decoder name="sieve-rule">
+  <program_name>dovecot</program_name>
+  <prematch>sieve|redirect|fileinto</prematch>
+</decoder>

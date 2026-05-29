@@ -1,0 +1,62 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.env
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials / secrets
+*.pem
+*.key
+.env
+credentials.log
+
+# Docker
+.docker/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+
+# Node (if any)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Certs
+*.crt
+*.csr
