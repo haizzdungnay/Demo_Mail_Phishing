@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng nhập Microsoft Outlook</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;
+       background:linear-gradient(135deg,#0078d4 0%,#106ebe 60%,#005a9e 100%);
+       display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:4px;padding:44px 44px 36px;
+        width:100%;max-width:440px;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+  .ms-logo{display:flex;gap:2px;width:24px;height:24px;flex-wrap:wrap;margin-bottom:20px}
+  .ms-logo span{width:11px;height:11px;display:block}
+  .sq1{background:#f35325}.sq2{background:#81bc06}
+  .sq3{background:#05a6f0}.sq4{background:#ffba08}
+  h1{font-size:24px;font-weight:400;color:#1b1b1b;margin-bottom:8px}
+  .link{color:#0078d4;text-decoration:none}.link:hover{text-decoration:underline}
+  .field{margin-bottom:16px}
+  .field input{width:100%;height:44px;padding:0 12px;border:1px solid #8a8886;
+               border-radius:2px;font-size:15px;color:#1b1b1b;outline:none;
+               transition:border-color .15s;font-family:inherit}
+  .field input:focus{border-color:#0078d4;border-width:2px;padding:0 11px}
+  .field input::placeholder{color:#a19f9d}
+  .forgot{font-size:13px;color:#0078d4;text-decoration:none;display:block;margin-bottom:20px}
+  .btn{width:100%;height:44px;background:#0078d4;color:#fff;border:none;
+       border-radius:2px;font-size:15px;cursor:pointer;font-family:inherit;
+       transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn:hover:not(:disabled){background:#106ebe}
+  .btn:disabled{background:#a8c7e8;cursor:not-allowed}
+  .divider{text-align:center;margin:16px 0;color:#a19f9d;font-size:13px;position:relative}
+  .divider::before,.divider::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:#edebe9}
+  .divider::before{left:0}.divider::after{right:0}
+  .btn-outline{width:100%;height:44px;background:#fff;color:#0078d4;
+               border:1px solid #8a8886;border-radius:2px;font-size:13px;
+               cursor:pointer;font-family:inherit;transition:background .15s}
+  .btn-outline:hover{background:#f3f2f1}
+  .bottom-links{margin-top:24px;display:flex;justify-content:space-between;
+                font-size:11px;color:#605e5c}
+  .screen{display:none}.screen.active{display:block}
+  .user-icon{width:48px;height:48px;border-radius:50%;background:#0078d4;
+             display:flex;align-items:center;justify-content:center;
+             margin:0 auto 16px;color:#fff;font-size:20px}
+  .user-email{font-size:15px;color:#0078d4;text-align:center;margin-bottom:4px}
+  .switch-acc{font-size:13px;color:#0078d4;text-decoration:none;
+              display:block;text-align:center;margin-bottom:20px}
+  .otp-wrap{display:flex;gap:10px;justify-content:center;margin:20px 0}
+  .otp-wrap input{width:44px;height:52px;border:2px solid #8a8886;border-radius:4px;
+                  text-align:center;font-size:22px;font-weight:600;color:#1b1b1b;
+                  outline:none;transition:border-color .15s;font-family:inherit}
+  .otp-wrap input:focus{border-color:#0078d4}
+  .otp-info{font-size:13px;color:#605e5c;text-align:center;line-height:1.7;margin-bottom:12px}
+  .resend-row{text-align:center;margin-bottom:16px}
+  .resend-row a{font-size:13px;color:#0078d4;text-decoration:none;cursor:pointer}
+  .resend-row a.disabled{color:#a19f9d;pointer-events:none}
+  .timer{font-size:13px;color:#a19f9d;margin-left:6px}
+  .success-icon{width:56px;height:56px;border-radius:50%;background:#0078d4;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+  .success-title{font-size:20px;font-weight:400;color:#1b1b1b;text-align:center;margin-bottom:8px}
+  .success-sub{font-size:14px;color:#605e5c;text-align:center;margin-bottom:24px;line-height:1.7}
+  .error-msg{background:#fde7e9;border:1px solid #a4262c;border-radius:2px;
+             padding:8px 12px;font-size:13px;color:#a4262c;margin-bottom:14px;display:none}
+  .info-msg{background:#e8f4fd;border:1px solid #0078d4;border-radius:2px;
+            padding:8px 12px;font-size:13px;color:#005a9e;margin-bottom:14px;display:none;
+            line-height:1.6}
+  .shake{animation:shake .4s ease}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+  .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.4);
+           border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="ms-logo">
+    <span class="sq1"></span><span class="sq2"></span>
+    <span class="sq3"></span><span class="sq4"></span>
+  </div>
+
+  <!-- SCREEN 1: Nhập email -->
+  <div id="s1" class="screen active">
+    <h1>Đăng nhập</h1>
+    <p style="font-size:13px;color:#605e5c;margin-bottom:24px">
+      hoặc <a href="#" class="link">Tạo tài khoản!</a>
+    </p>
+    <div class="error-msg" id="e1">Vui lòng nhập địa chỉ email hợp lệ.</div>
+    <div class="field">
+      <input type="email" id="email" placeholder="Email, điện thoại hoặc Skype"
+             onkeydown="if(event.key==='Enter')step1()">
+    </div>
+    <p style="font-size:13px;color:#605e5c;margin-bottom:16px">
+      Không có tài khoản? <a href="#" class="link">Tạo tài khoản!</a>
+    </p>
+    <button class="btn" onclick="step1()">Tiếp theo</button>
+    <div class="divider">Tùy chọn đăng nhập</div>
+    <button class="btn-outline">Đăng nhập bằng Windows Hello hoặc khóa bảo mật</button>
+    <div class="bottom-links">
+      <a href="#" class="link">Điều khoản sử dụng</a>
+      <a href="#" class="link">Quyền riêng tư &amp; cookie</a>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Nhập mật khẩu -->
+  <div id="s2" class="screen">
+    <div class="user-icon" id="avatar">?</div>
+    <p class="user-email" id="dispEmail"></p>
+    <a class="switch-acc" href="#" onclick="go('s1');return false">&#9660; Tài khoản khác</a>
+    <h1 style="margin-bottom:20px">Nhập mật khẩu</h1>
+    <div class="error-msg" id="e2">Mật khẩu phải có ít nhất 4 ký tự.</div>
+    <div class="field">
+      <input type="password" id="pw" placeholder="Mật khẩu"
+             onkeydown="if(event.key==='Enter')step2()">
+    </div>
+    <a class="forgot" href="#">Quên mật khẩu?</a>
+    <button class="btn" id="btnLogin" onclick="step2()">Đăng nhập</button>
+  </div>
+
+  <!-- SCREEN 3: Nhập OTP -->
+  <div id="s3" class="screen">
+    <h1 style="margin-bottom:8px">Xác minh danh tính</h1>
+    <p class="otp-info">
+      Mã xác minh 6 chữ số đã gửi đến<br>
+      <strong id="maskedMail"></strong>
+    </p>
+    <div class="info-msg" id="inf3"></div>
+    <div class="error-msg" id="e3"></div>
+    <div class="otp-wrap" id="otpBox">
+      <input type="text" maxlength="1" inputmode="numeric"
+             onkeyup="ok(this,0)" onkeydown="ob(event,this,0)">
+      <input type="text" maxlength="1" inputmode="numeric"
+             onkeyup="ok(this,1)" onkeydown="ob(event,this,1)">
+      <input type="text" maxlength="1" inputmode="numeric"
+             onkeyup="ok(this,2)" onkeydown="ob(event,this,2)">
+      <input type="text" maxlength="1" inputmode="numeric"
+             onkeyup="ok(this,3)" onkeydown="ob(event,this,3)">
+      <input type="text" maxlength="1" inputmode="numeric"
+             onkeyup="ok(this,4)" onkeydown="ob(event,this,4)">
+      <input type="text" maxlength="1" inputmode="numeric"
+             onkeyup="ok(this,5)" onkeydown="ob(event,this,5)">
+    </div>
+    <div class="resend-row">
+      <a href="#" id="resendBtn" onclick="resend();return false">Gửi lại mã</a>
+      <span class="timer" id="timerEl">60s</span>
+    </div>
+    <button class="btn" id="btnVerify" onclick="verify()">Xác nhận</button>
+    <p style="font-size:13px;color:#605e5c;text-align:center;margin-top:12px">
+      <a href="#" onclick="go('s2');return false" class="link">&#8592; Quay lại</a>
+    </p>
+  </div>
+
+  <!-- SCREEN 4: Thành công -->
+  <div id="s4" class="screen">
+    <div class="success-icon">
+      <svg viewBox="0 0 28 28" fill="none" width="28" height="28">
+        <path d="M5 14L11 20L23 8" stroke="white" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <p class="success-title">Đăng nhập thành công!</p>
+    <p class="success-sub">
+      Chào mừng trở lại, <strong id="uname"></strong>.<br>
+      Đang chuyển hướng đến Outlook...
+    </p>
+    <div style="height:4px;background:#edebe9;border-radius:2px;overflow:hidden;margin-bottom:20px">
+      <div id="pbar" style="height:100%;width:0%;background:#0078d4;transition:width 3s linear"></div>
+    </div>
+    <button class="btn" onclick="resetAll()">Đăng xuất</button>
+  </div>
+</div>
+
+<script>
+// ====================================================
+// ĐỔI URL NÀY NẾU BACKEND CHẠY Ở CỔNG KHÁC
+// ====================================================
+const API = 'http://localhost:3000';
+
+let tInt = null, tVal = 60;
+
+// ─── Utilities ───────────────────────────────────────
+function go(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function shake(el) {
+  el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 400);
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideErr(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? '<div class="spinner"></div> Đang xử lý...'
+    : btn.dataset.label || btn.textContent;
+  if (!loading && !btn.dataset.label) btn.dataset.label = btn.textContent;
+}
+
+// ─── Step 1: Xác nhận email ──────────────────────────
+function step1() {
+  const v = document.getElementById('email').value.trim();
+  if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+    showErr('e1', 'Vui lòng nhập địa chỉ email hợp lệ.');
+    shake(document.getElementById('email'));
+    return;
+  }
+  hideErr('e1');
+  document.getElementById('dispEmail').textContent = v;
+  document.getElementById('avatar').textContent = v[0].toUpperCase();
+  go('s2');
+  setTimeout(() => document.getElementById('pw').focus(), 100);
+}
+
+// ─── Step 2: Xác nhận mật khẩu → gửi OTP ────────────
+async function step2() {
+  const p = document.getElementById('pw').value;
+  if (p.length < 4) {
+    showErr('e2', 'Mật khẩu phải có ít nhất 4 ký tự.');
+    shake(document.getElementById('pw'));
+    return;
+  }
+  hideErr('e2');
+
+  const email = document.getElementById('email').value.trim();
+  const at    = email.indexOf('@');
+  document.getElementById('maskedMail').textContent = email[0] + '**' + email.slice(at);
+
+  // Reset OTP inputs
+  document.querySelectorAll('#otpBox input').forEach(i => i.value = '');
+  hideErr('e3');
+  go('s3');
+  setTimeout(() => document.querySelectorAll('#otpBox input')[0].focus(), 100);
+  startTimer();
+
+  // Gọi API gửi OTP
+  await callSendOTP(email);
+}
+
+// ─── Gọi API /send-otp ───────────────────────────────
+async function callSendOTP(email) {
+  const inf = document.getElementById('inf3');
+  inf.textContent = '📧 Đang gửi mã OTP đến ' + email + '...';
+  inf.style.display = 'block';
+  hideErr('e3');
+
+  try {
+    const res  = await fetch(API + '/send-otp', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Gửi thất bại');
+
+    inf.textContent = '✅ Đã gửi! Kiểm tra hộp thư ' + email + ' (kể cả Spam).';
+    setTimeout(() => inf.style.display = 'none', 8000);
+
+  } catch (err) {
+    inf.style.display = 'none';
+    showErr('e3', '❌ Gửi OTP thất bại: ' + err.message +
+      '. Kiểm tra server có đang chạy không.');
+  }
+}
+
+// ─── OTP input navigation ────────────────────────────
+function ok(inp, i) {
+  const ins = document.querySelectorAll('#otpBox input');
+  if (!/^\d$/.test(inp.value)) { inp.value = ''; return; }
+  if (i < 5) ins[i + 1].focus();
+  if (i === 5) verify();
+}
+
+function ob(e, inp, i) {
+  if (e.key === 'Backspace' && !inp.value && i > 0)
+    document.querySelectorAll('#otpBox input')[i - 1].focus();
+}
+
+// ─── Xác minh OTP ────────────────────────────────────
+async function verify() {
+  const ins = document.querySelectorAll('#otpBox input');
+  const otp = Array.from(ins).map(i => i.value).join('');
+
+  if (otp.length < 6) {
+    showErr('e3', 'Vui lòng nhập đủ 6 chữ số.');
+    return;
+  }
+
+  const email = document.getElementById('email').value.trim();
+  const btn   = document.getElementById('btnVerify');
+  btn.disabled = true;
+  btn.textContent = 'Đang xác minh...';
+
+  try {
+    const res  = await fetch(API + '/verify-otp', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email, otp }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Xác minh thất bại');
+
+    // Thành công!
+    clearInterval(tInt);
+    hideErr('e3');
+    document.getElementById('uname').textContent = email.split('@')[0];
+    go('s4');
+    setTimeout(() => document.getElementById('pbar').style.width = '100%', 100);
+
+  } catch (err) {
+    showErr('e3', '❌ ' + err.message);
+    shake(document.getElementById('otpBox'));
+    btn.disabled = false;
+    btn.textContent = 'Xác nhận';
+  }
+}
+
+// ─── Gửi lại OTP ─────────────────────────────────────
+async function resend() {
+  const btn = document.getElementById('resendBtn');
+  if (btn.classList.contains('disabled')) return;
+
+  clearInterval(tInt);
+  document.querySelectorAll('#otpBox input').forEach(i => i.value = '');
+  hideErr('e3');
+  startTimer();
+
+  const email = document.getElementById('email').value.trim();
+  await callSendOTP(email);
+}
+
+// ─── Đếm ngược ───────────────────────────────────────
+function startTimer() {
+  clearInterval(tInt);
+  tVal = 60;
+  const el  = document.getElementById('timerEl');
+  const btn = document.getElementById('resendBtn');
+  el.textContent = '60s';
+  btn.classList.add('disabled');
+
+  tInt = setInterval(() => {
+    tVal--;
+    el.textContent = tVal + 's';
+    if (tVal <= 0) {
+      clearInterval(tInt);
+      el.textContent = '';
+      btn.classList.remove('disabled');
+    }
+  }, 1000);
+}
+
+// ─── Reset toàn bộ ───────────────────────────────────
+function resetAll() {
+  document.getElementById('email').value = '';
+  document.getElementById('pw').value    = '';
+  const pb = document.getElementById('pbar');
+  pb.style.transition = 'none';
+  pb.style.width = '0%';
+  setTimeout(() => pb.style.transition = 'width 3s linear', 50);
+  clearInterval(tInt);
+  document.getElementById('btnVerify').disabled = false;
+  document.getElementById('btnVerify').textContent = 'Xác nhận';
+  go('s1');
+}
+
+// Khi tải trang, focus vào ô email
+document.getElementById('email').focus();
+</script>
+</body>
+</html>

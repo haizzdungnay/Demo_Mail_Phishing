@@ -1,0 +1,15 @@
+# Credentials
+.env
+*.log
+credentials.log
+
+# Dependencies
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

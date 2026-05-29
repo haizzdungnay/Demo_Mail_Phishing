@@ -1,11 +1,66 @@
-# PhishLab — Sakura Tech Email Incident Lab
-# "Cái Bẫy Hoàn Hảo"
+# PhishLab - Sakura Tech Email Incident Lab
+"Cái Bẫy Hoàn Hảo"
 
 > Chi muc dich dao tao nhan dien phishing, BEC, va dieu tra so. Chi trien khai trong mang noi bo co phep.
 
-## Kịch bản
+## Kho tauri
 
-Day la lab mo phong tan cong **Business Email Compromise (BEC)** hoan chinh voi 6 giai doan:
+```
+Demo-Mail-Phising/
+├── lab/                      # Lab mo phong 6 VMs (Proxmox)
+│   ├── topology/             # Cau hinh mang 6 VMs
+│   ├── setup/                # Scripts cai dat cho tung VM
+│   ├── gophish/              # GoPhish campaign config
+│   ├── wazuh/                # Wazuh SIEM rules
+│   ├── simulation/           # Tu dong mo phong 6 phase
+│   ├── forensics/            # Cong cu dieu tra so
+│   └── DEPLOYMENT_GUIDE.md  # Huong dan cai dat chi tiet
+├── demo web only/            # Phishing landing page (web-only, khong can lab)
+│   └── outlook-otp/
+│       ├── frontend/         # Trang web gia mao Outlook + OTP
+│       └── backend/          # Node.js API (gui OTP qua Gmail SMTP)
+└── docs/                     # Tai lieu bieu mau
+```
+
+## Hai che do trien khai
+
+### Che do 1: Demo Web Only (Khong can lab)
+Chay phishing landing page don gian chi voi frontend + backend Node.js tren may cuc bo.
+
+**Cac buoc:**
+
+```bash
+# 1. Cai dat backend
+cd "demo web only/outlook-otp/backend"
+npm install
+
+# 2. Tao file .env (copy tu .env.example)
+# Chen email Gmail va App Password cua ban
+
+# 3. Chay backend
+npm start
+
+# 4. Mo frontend
+# Mo file frontend/index.html trong trinh duyet
+```
+
+**Yeu cau:**
+- Node.js 18+
+- Tai khoan Gmail voi [App Password](https://myaccount.google.com/apppasswords)
+- Frontend: chi can mo file HTML, khong can server
+
+**Chuc nang:**
+- Step 1: Nhap email
+- Step 2: Nhap mat khau (luu log)
+- Step 3: Nhap ma OTP 6 chu so (gui tu backend qua Gmail SMTP)
+- Step 4: Thong bao thanh cong
+
+**Luu y:** Tat ca email mat khau chi duoc ghi log cuc bo, khong gui dau.
+
+---
+
+### Che do 2: Lab Day Du (6 VMs Proxmox)
+Lab mo phong tan cong **Business Email Compromise (BEC)** hoan chinh voi 6 giai doan:
 
 ```
 [Day 1]

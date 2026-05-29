@@ -32,7 +32,6 @@ Thumbs.db
 # Credentials / secrets
 *.pem
 *.key
-.env
 credentials.log
 
 # Docker
@@ -60,3 +59,7 @@ yarn.lock
 # Certs
 *.crt
 *.csr
+
+# Demo Web Only
+demo web only/outlook-otp/backend/node_modules/
+demo web only/outlook-otp/backend/package-lock.json
