@@ -108,19 +108,21 @@ lab/
 
 | VM | IP | OS | Role |
 |----|----|----|------|
-| dmz-mail | 10.71.119.51 | Ubuntu 24.04 | iRedMail |
-| dmz-nginx | 10.71.119.101 | Ubuntu 24.04 | GoPhish |
-| mgmt-wazuh | 10.71.120.103 | Ubuntu 22.04 | Wazuh SIEM |
-| srv-victim | 10.71.121.100 | Ubuntu 24.04 | Victim |
-| jump-kali | 10.71.120.113 | Kali Linux | Forensics |
+| dmz-mail | 10.10.50.20 | Ubuntu 24.04 | iRedMail |
+| dmz-nginx | 10.10.50.10 | Ubuntu 24.04 | GoPhish |
+| mgmt-wazuh | 172.16.30.100 | Ubuntu 22.04 | Wazuh SIEM |
+| win-dc | 172.16.21.100 | Windows Server 2022 | AD DC sakuratech.local |
+| ws-linhntt | 172.16.23.101 | Windows 10 Pro | Victim Workstation |
+| jump-kali | 172.16.30.102 | Kali Linux | Forensics |
 | fw-pfsense | multi | pfSense 2.7 | Firewall |
+| fw-mikrotik | 172.16.0.2 | MikroTik | Internal Firewall/VLAN |
 
 ### 2. Chay setup scripts
 
 ```bash
 # Copy setup scripts sang VMs
-scp lab/setup/107_dmz-mail/setup.sh root@10.71.119.51:/tmp/
-ssh root@10.71.119.51 && bash /tmp/setup.sh
+scp lab/setup/107_dmz-mail/setup.sh root@10.10.50.20:/tmp/
+ssh root@10.10.50.20 && bash /tmp/setup.sh
 ```
 
 Lam tuong tu cho cac VM con lai.
@@ -128,7 +130,7 @@ Lam tuong tu cho cac VM con lai.
 ### 3. Cau hinh GoPhish
 
 ```bash
-# Truy cap: http://10.71.119.101:3333
+# Truy cap: https://10.10.50.10:3333
 # Default: admin / gophish
 ```
 
@@ -163,20 +165,22 @@ forensic_toolkit.sh report
 
 | Cong cu | Dia chi | Mat khau | Chuc nang |
 |---------|---------|----------|-----------|
-| GoPhish Admin | http://10.71.119.101:3333 | admin/gophish | Quan ly campaign |
-| iRedAdmin | https://10.71.119.51/iredadmin | postmaster/Intern#2026 | Quan ly mail |
-| Roundcube | https://10.71.119.51/mail | linhntt/Victim@2026! | Webmail |
-| Wazuh | https://10.71.120.103 | admin/WazuhLab2026! | SIEM dashboards |
-| Kali Tools | 10.71.120.113 | root/(ban dat) | Forensics |
+| GoPhish Admin | https://10.10.50.10:3333 | admin/gophish | Quan ly campaign |
+| iRedAdmin | https://10.10.50.20/iredadmin | postmaster/Intern#2026 | Quan ly mail |
+| Roundcube | https://10.10.50.20/mail | linhntt/Linhktsakura120 | Webmail |
+| Wazuh | https://172.16.30.100 | admin/WazuhLab2026! | SIEM dashboards |
+| Kali Tools | 172.16.30.102 | root/(ban dat) | Forensics |
+| win-dc | 172.16.21.100 | SAKURATECH\Administrator/Intern#2026 | AD Domain Controller |
+| ws-linhntt | 172.16.23.101 | SAKURATECH\linhntt/Linhktsakura120 | Victim Workstation |
 
 ## Danh sach tai khoan mail
 
 | Email | Mat khau | Vai tro |
 |-------|----------|---------|
 | postmaster@sakuratech.local | Intern#2026 | Admin |
-| linhntt@sakuratech.local | Victim@2026! | Ke toan truong (nan nhan) |
+| linhntt@sakuratech.local | Linhktsakura120 | Ke toan truong (nan nhan) |
 | ducmh@sakuratech.local | CEO@2026! | CEO |
-| phongketoan@sakuratech.local | Staff@2026! | Phong ke toan |
+| phongketoan@sakuratech.local | Ketoan@2026! | Phong ke toan |
 
 ## Wazuh Custom Rules
 
