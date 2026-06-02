@@ -3,7 +3,7 @@
 
 > Chi muc dich dao tao nhan dien phishing, BEC, va dieu tra so. Chi trien khai trong mang noi bo co phep.
 
-## Kho tauri
+## Cau truc kho (Repository Structure)
 
 ```
 Demo-Mail-Phising/
@@ -59,19 +59,29 @@ npm start
 
 ---
 
-### Che do 2: Lab Day Du (6 VMs Proxmox)
-Lab mo phong tan cong **Business Email Compromise (BEC)** hoan chinh voi 6 giai doan:
+### Che do 2: Lab Day Du (12 VMs Proxmox)
+Lab mo phong tan cong **Email-Based Cybercrime** voi 2 case:
+
+### Case 1 — Technical Attack (Spear Phishing + Reverse Shell)
 
 ```
-[Day 1]
-  09:00  Phase 1  — Email phishing tu domain gia sakura-vendor.com
-  09:15  Phase 2  — Nuoc nhan click link, GoPhish ghi nhan
-  10:30  Phase 3  — Ke tan cong dang nhap tu IP nuoc ngoai
-  11:00  Phase 4  — Tao mail rule tu dong forward email tai chinh
+Phase 1 (09:00):  GoPhish gui email phishing tu sakura-vendor.com → linhntt
+Phase 2 (09:15): linhntt click link → landing page → GoPhish log IP, timestamp
+Phase 3 (10:30): Reverse shell ve Kali → whoami → SAKURATECH\linhntt
+Phase 4 (11:00): Wazuh bat alert — suspicious outbound connection
+                 → Dieu tra: network log, process tree, Windows Event Log
+```
 
-[Day 3]
-  14:00  Phase 5  — Ke tan cong gui email BEC tu hop thu linhntt
-  14:30  Phase 6  — Xoa bang chung nhung van con trace
+### Case 2 — BEC Fraud (Financial)
+
+```
+Phase 1 (Day 1, 10:30): Attacker dang nhap mailbox linhntt tu IP nuoc ngoai (Tor exit node)
+Phase 2 (Day 1, 11:00): Tao mail rule tu dong forward email tai chinh
+Phase 3 (Day 3, 14:00): Attacker gui email BEC tu hop thu linhntt den phongketoan
+                          ("Nha cung cap doi tai khoan ngan hang, chuyen khoan gap")
+Phase 4 (Day 3, 14:30): Xoa bang chung nhung van con trace
+                          → Dieu tra: email header, SPF/DKIM/DMARC FAIL,
+                              impossible travel (VN → Germany 75 phut)
 ```
 
 ## Cau truc lab
@@ -84,7 +94,11 @@ lab/
 │   ├── 107_dmz-mail/  iRedMail server
 │   ├── 101_dmz-nginx/ GoPhish + Landing pages
 │   ├── 103_mgmt-wazuh/ Wazuh SIEM
-│   ├── 100_srv-victim/ Victim simulation
+│   ├── 100_srv-victim/  Victim simulation
+│   │                     ⚠️ Luu y: Victim hien tai la Windows (ws-linhntt VM120),
+│   │                        khong phai Ubuntu. Script trong thu muc nay chi giu
+│   │                        lai de tham khao ban Linux cu. Khi chay setup,
+│   │                        BO QUA script nay.
 │   ├── 113_jump-kali/  Kali forensics station
 │   └── 102_fw-pfsense/ pfSense firewall
 ├── gophish/           GoPhish campaign config
@@ -104,21 +118,24 @@ lab/
 
 ## Tai khoan mail
 
+> ⚠️ Cac mat khau that duoc luu trong file rieng (khong commit len Git).
+> README chi hien thi placeholder. Xem DEPLOYMENT_GUIDE.md (ban noi bo) de biet chi tiet.
+
 | Email | Mat khau | Vai tro |
 |-------|----------|---------|
-| postmaster@sakuratech.local | Intern#2026 | Admin iRedMail |
-| linhntt@sakuratech.local | Linhktsakura120 | Ke toan truong (nan nhan) |
-| ducmh@sakuratech.local | CEO@2026! | CEO gia (attacker dung spoof) |
-| phongketoan@sakuratech.local | Ketoan@2026! | Phong ke toan (Case 2 BEC) |
+| postmaster@sakuratech.local | `<admin-password>` | Admin iRedMail |
+| linhntt@sakuratech.local | `<user-password>` | Ke toan truong (nan nhan) |
+| ducmh@sakuratech.local | `<ceo-password>` | CEO gia (attacker dung spoof) |
+| phongketoan@sakuratech.local | `<accounting-password>` | Phong ke toan (Case 2 BEC) |
 
 ## Web Services
 
 | Service | URL | Username | Password |
 |---------|-----|----------|----------|
-| iRedAdmin | https://10.10.50.20/iredadmin | postmaster@sakuratech.local | Intern#2026 |
-| Roundcube Webmail | https://10.10.50.20/mail | linhntt@sakuratech.local | Linhktsakura120 |
+| iRedAdmin | https://10.10.50.20/iredadmin | postmaster@sakuratech.local | `<admin-password>` |
+| Roundcube Webmail | https://10.10.50.20/mail | linhntt@sakuratech.local | `<user-password>` |
 | GoPhish Admin | https://10.10.50.10:3333 | admin | (xem log lan chay gan nhat) |
-| Wazuh Dashboard | https://172.16.30.100 | admin | WazuhLab2026! |
+| Wazuh Dashboard | https://172.16.30.100 | admin | `<wazuh-password>` |
 | Proxmox GUI | https://192.168.1.10:8006 | root | - |
 | pfSense GUI | https://192.168.1.200:4443 | admin | - |
 
@@ -129,15 +146,15 @@ lab/
 | Domain | sakuratech.local |
 | Domain Controller | win-dc (172.16.21.100) |
 | Admin | SAKURATECH\Administrator |
-| Admin Password | Intern#2026 |
+| Admin Password | `<admin-password>` |
 | User linhntt | linhntt@sakuratech.local |
-| User Password | Linhktsakura120 |
+| User Password | `<user-password>` |
 
 ## Database (iRedMail MariaDB)
 
 | Item | Value |
 |------|-------|
-| MySQL root password | Intern#2026 |
+| MySQL root password | `<admin-password>` |
 
 ## VPN
 
@@ -179,7 +196,7 @@ pfsense + mikrotik + dmz-mail + win-dc + ws-linhntt + wazuh + kali
 ### Case 1 — Technical Attack (Spear Phishing + Reverse Shell)
 
 ```
-Phase 1 (09:00): GoPhish gui email phishing tu sakura-vendor.com → linhntt
+Phase 1 (09:00):  GoPhish gui email phishing tu sakura-vendor.com → linhntt
 Phase 2 (09:15): linhntt click link → landing page → GoPhish log IP, timestamp
 Phase 3 (10:30): Reverse shell ve Kali → whoami → SAKURATECH\linhntt
 Phase 4 (11:00): Wazuh bat alert — suspicious outbound connection
@@ -189,11 +206,13 @@ Phase 4 (11:00): Wazuh bat alert — suspicious outbound connection
 ### Case 2 — BEC Fraud (Financial)
 
 ```
-Attacker (tu mailbox linhntt da chiem) gui email den phongketoan
-→ Noi dung: "Nha cung cap doi tai khoan ngan hang, chuyen khoan gap"
-→ Email tu dia chi that linhntt@sakuratech.local
-→ Postfix log: email gui tu IP nuoc ngoai (185.220.101.47)
-→ Dieu tra: email header, SPF/DKIM FAIL, impossible travel
+Phase 1 (Day 1, 10:30): Attacker dang nhap mailbox linhntt tu IP nuoc ngoai (Tor exit node)
+Phase 2 (Day 1, 11:00): Tao mail rule tu dong forward email tai chinh
+Phase 3 (Day 3, 14:00): Attacker gui email BEC tu hop thu linhntt den phongketoan
+                          ("Nha cung cap doi tai khoan ngan hang, chuyen khoan gap")
+Phase 4 (Day 3, 14:30): Xoa bang chung nhung van con trace
+                          → Dieu tra: email header, SPF/DKIM/DMARC FAIL,
+                              impossible travel (VN → Germany 75 phut)
 ```
 
 ## Tien do ky thuat

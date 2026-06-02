@@ -1,65 +1,27 @@
-# Byte-compiled / optimized
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
-venv/
-env/
+# Credentials & secrets
+*.secret
 .env
+.env.*
+*.env
 
-# Logs
-*.log
-logs/
-*.log.*
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Internal documents with real credentials
+*tiendo*
+*credential*
+*password*
+tiendo_va_credentials.md
+credentials.md
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Credentials / secrets
-*.pem
-*.key
-credentials.log
+# Logs
+*.log
 
-# Docker
-.docker/
+# Node (demo web only)
+demo web only/outlook-otp/backend/node_modules/
+demo web only/outlook-otp/backend/.env
 
 # Build artifacts
-dist/
-build/
-*.egg-info/
-
-# Temp files
-tmp/
-temp/
-*.tmp
-
-# Backup files
-*.bak
-*.backup
-
-# Node (if any)
-node_modules/
-package-lock.json
-yarn.lock
-
-# Certs
-*.crt
-*.csr
-
-# Demo Web Only
-demo web only/outlook-otp/backend/node_modules/
-demo web only/outlook-otp/backend/package-lock.json
+*.pyc
+__pycache__/
