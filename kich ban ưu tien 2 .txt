@@ -1,0 +1,515 @@
+# KỊCH BẢN KỸ THUẬT ĐẦY ĐỦ
+## Đồ án: Tracking E-Mails and Investigating E-Mail Crime
+### "Cái Bẫy Hoàn Hảo" — Phishing → BEC Fraud → Digital Forensics
+
+---
+
+## THÔNG TIN MÔI TRƯỜNG LAB
+
+| Node | IP | Role | OS |
+|---|---|---|---|
+| 107 dmz-mail | 10.71.119.51 | Mail Server (iRedMail 1.8.1) | Ubuntu 24.04 LXC |
+| 101 dmz-nginx | TBD | GoPhish + Landing Page | Ubuntu LXC |
+| 103 mgmt-wazuh | TBD | SIEM (Wazuh) | Ubuntu VM |
+| 100 srv-ubuntu | TBD | Victim simulation | Ubuntu LXC |
+| 113 jump-kali | TBD | Forensics Analyst | Kali Linux VM |
+| 102 fw-pfsense | TBD | External Firewall | pfSense |
+
+### Mail Accounts
+
+| Account | Email | Password | Role |
+|---|---|---|---|
+| postmaster | postmaster@sakuratech.local | Intern#2026 | Admin |
+| linhntt | linhntt@sakuratech.local | Victim@2026! | Victim — Chị Linh |
+| ducmh | ducmh@sakuratech.local | CEO@2026! | CEO giả — Huỳnh Minh |
+
+### URLs
+
+| Service | URL |
+|---|---|
+| iRedAdmin | https://10.71.119.51/iredadmin |
+| Roundcube Webmail | https://10.71.119.51/mail |
+| GoPhish Admin | https://10.71.119.51:3333 (sau khi cài) |
+
+---
+
+## PHASE 1 — EMAIL PHISHING (Ngày 1, 09:00)
+
+### Mục tiêu
+Gửi email phishing từ domain giả `sakura-vendor.com` (typosquat của `sakura-vendor.net`) đến chị Linh, kèm link dẫn đến trang giả mạo.
+
+### Kỹ thuật sử dụng
+- **MITRE T1566.002** — Spearphishing Link
+- **Domain typosquatting** — sakura-vendor**.com** thay vì **.net**
+- **Email spoofing** — From header giả mạo
+- **Social engineering** — Urgent language, impersonation CEO
+
+### Setup GoPhish trên 101
+
+```bash
+# SSH vào 101
+cd /tmp
+wget https://github.com/gophish/gophish/releases/download/v0.12.1/gophish-v0.12.1-linux-64bit.zip
+apt install -y unzip
+unzip gophish-v0.12.1-linux-64bit.zip -d /opt/gophish
+chmod +x /opt/gophish/gophish
+cd /opt/gophish
+
+# Chỉnh config.json — cho phép truy cập từ ngoài
+sed -i 's/127.0.0.1:3333/0.0.0.0:3333/' config.json
+
+# Chạy GoPhish
+./gophish &
+```
+
+Truy cập GoPhish admin: `https://<IP_101>:3333`
+- Default login: `admin / gophish`
+
+### Cấu hình GoPhish
+
+**Sending Profile:**
+```
+Name: Sakura Vendor Fake
+From: support@sakura-vendor.com
+Host: 10.71.119.51:25  (mail server 107)
+```
+
+**Email Template:**
+```
+Subject: [KHẨN] Nâng cấp hệ thống thanh toán — Xác nhận ngay
+From: "Sakura Vendor Support" <support@sakura-vendor.com>
+
+Kính gửi {{.FirstName}},
+
+Hệ thống thanh toán của chúng tôi vừa được nâng cấp bảo mật.
+Vui lòng đăng nhập để xác nhận tài khoản trước 17:00 hôm nay.
+
+[XÁC NHẬN NGAY] → {{.URL}}
+
+Trân trọng,
+Sakura Vendor Support Team
+```
+
+**Landing Page:**
+```html
+<!-- Trang hiện ra sau khi victim click -->
+<!DOCTYPE html>
+<html>
+<head><title>Cảnh báo bảo mật</title></head>
+<body style="text-align:center;padding:50px;font-family:Arial;">
+  <h1 style="color:red;">⚠️ CẢNH BÁO BẢO MẬT</h1>
+  <h2>Bạn đã nhấp vào một liên kết phishing!</h2>
+  <p>Đây là bài kiểm tra nhận thức bảo mật nội bộ.</p>
+  <p>Thông tin của bạn đã được ghi lại:</p>
+  <ul style="text-align:left;display:inline-block;">
+    <li>Thời gian: {{timestamp}}</li>
+    <li>IP: {{ip}}</li>
+    <li>Browser: {{useragent}}</li>
+  </ul>
+  <p>Vui lòng liên hệ IT Security để được hướng dẫn.</p>
+</body>
+</html>
+```
+
+### Dấu vết sinh ra (IOC Phase 1)
+
+| Log Source | Nội dung | Forensic Value |
+|---|---|---|
+| Postfix mail log | Email từ sakura-vendor.com đi vào | Sender IP, timestamp |
+| SPF check | FAIL — domain không authorize | Xác nhận email giả |
+| DKIM check | FAIL — không có signature | Xác nhận email giả |
+| DMARC check | NONE — domain chưa cấu hình | Red flag |
+| Wazuh alert | Rule 31101 — suspicious email | Alert đầu tiên |
+
+---
+
+## PHASE 2 — USER INTERACTION (Ngày 1, 09:15)
+
+### Mục tiêu
+Chị Linh click link trong email → trang cảnh báo hiện ra → GoPhish log lại hành động.
+
+### Kỹ thuật sử dụng
+- **MITRE T1566.002** — User clicks phishing link
+- **Tracking pixel** — Ghi lại IP, timestamp khi email được mở
+- **GoPhish campaign tracking** — Log click event
+
+### Simulate từ máy victim (100 srv-ubuntu)
+
+```bash
+# Cài browser headless để simulate victim click
+apt install -y curl
+
+# Simulate mở email (tracking pixel fired)
+curl -s "http://<IP_101>/track/open?rid=<campaign_id>" > /dev/null
+
+# Simulate click link
+curl -s "http://<IP_101>/track/click?rid=<campaign_id>" > /dev/null
+```
+
+### Dấu vết sinh ra (IOC Phase 2)
+
+| Log Source | Nội dung | Forensic Value |
+|---|---|---|
+| GoPhish log | Email opened — IP victim, timestamp | Xác nhận nạn nhân mở email |
+| GoPhish log | Link clicked — IP victim, user-agent | Xác nhận nạn nhân click |
+| DNS log (pfSense) | Query đến login-sakura-vendor.com | Truy vết domain phishing |
+| Nginx access log (101) | GET request từ IP victim | Timeline click |
+| Wazuh alert | DNS query to suspicious domain | Alert tự động |
+
+---
+
+## PHASE 3 — ACCOUNT COMPROMISE (Ngày 1, 10:30)
+
+### Mục tiêu
+Simulate attacker đăng nhập mailbox chị Linh từ IP nước ngoài.
+
+### Kỹ thuật sử dụng
+- **MITRE T1078** — Valid Accounts
+- **Impossible Travel** — Login VN lúc 09:15, login "Đông Âu" lúc 10:30
+
+### Script simulate trên 100 srv-ubuntu
+
+```bash
+# Simulate login bình thường từ IP nội bộ (victim)
+curl -k -X POST https://10.71.119.51/mail \
+  -d "user=linhntt@sakuratech.local&pass=Victim@2026!" \
+  --header "X-Forwarded-For: 10.71.119.100" \
+  --header "User-Agent: Mozilla/5.0 (Windows NT 10.0)"
+
+# Simulate login attacker từ IP nước ngoài (inject vào log)
+logger -p auth.info -t dovecot \
+  "imap-login: Login: user=<linhntt@sakuratech.local>, \
+  method=PLAIN, rip=185.220.101.47, lip=10.71.119.51, \
+  mpid=1234, secured, session=<attacker_session>"
+```
+
+### Inject impossible travel log vào Wazuh
+
+```bash
+# Tạo file log giả lập trên 107
+cat >> /var/log/dovecot.log << 'EOF'
+2024-01-15T10:30:02 imap-login: Login: user=<linhntt@sakuratech.local>, method=PLAIN, rip=185.220.101.47, lip=10.71.119.51, mpid=5678, secured
+EOF
+```
+
+### Dấu vết sinh ra (IOC Phase 3)
+
+| Log Source | Nội dung | Forensic Value |
+|---|---|---|
+| Dovecot auth log | Login từ 185.220.101.47 | IP attacker |
+| Dovecot auth log | 2 sessions đồng thời | Impossible travel |
+| Wazuh alert | Rule 18152 — multiple sessions | Alert tự động |
+| GeoIP lookup | 185.220.101.47 → Đông Âu (Tor exit) | Vị trí attacker |
+
+---
+
+## PHASE 4 — PERSISTENCE (Ngày 1, 11:00)
+
+### Mục tiêu
+Attacker tạo mail rule ẩn: auto-forward email chứa từ khóa tài chính ra ngoài.
+
+### Kỹ thuật sử dụng
+- **MITRE T1114.003** — Email Forwarding Rule
+- **MITRE T1564.008** — Email Hiding Rules
+
+### Tạo mail rule qua Roundcube
+
+Đăng nhập Roundcube bằng account linhntt → Settings → Filters → New Filter:
+
+```
+Filter name: system-update (tên ẩn)
+Condition: Subject contains "thanh toán" OR "chuyển khoản" OR "ngân hàng"
+Action: Forward to attacker@protonmail.com
+        Mark as read
+        Move to Trash
+```
+
+### Dấu vết sinh ra (IOC Phase 4)
+
+| Log Source | Nội dung | Forensic Value |
+|---|---|---|
+| Dovecot sieve log | New filter created | Thời điểm tạo rule |
+| Postfix log | Forward đến external email | Domain attacker |
+| Wazuh alert | Mailbox rule change | Alert tự động |
+| iRedAdmin log | Settings changed by linhntt | Audit trail |
+
+---
+
+## PHASE 5 — BEC FRAUD (Ngày 3, 14:00)
+
+### Mục tiêu
+Từ mailbox chị Linh, attacker gửi email lừa đảo đến phòng tài chính yêu cầu chuyển khoản.
+
+### Kỹ thuật sử dụng
+- **MITRE T1586.002** — Compromise Email Accounts
+- **Business Email Compromise (BEC)** — Gửi từ email thật
+
+### Gửi email BEC qua Roundcube (đăng nhập bằng account linhntt)
+
+```
+To: phongketoan@sakuratech.local
+Subject: [KHẨN] Cập nhật thông tin ngân hàng nhà cung cấp ABC
+From: linhntt@sakuratech.local (email thật!)
+
+Gửi phòng kế toán,
+
+Nhà cung cấp ABC vừa thông báo đổi số tài khoản ngân hàng.
+Vui lòng cập nhật và chuyển khoản theo thông tin mới:
+
+Ngân hàng: Vietcombank
+STK: 9876543210
+Chủ TK: NGUYEN VAN A
+
+Cần xử lý trước EOD hôm nay.
+
+Trân trọng,
+Nguyễn Thị Linh — Kế toán trưởng
+```
+
+### Dấu vết sinh ra (IOC Phase 5)
+
+| Log Source | Nội dung | Forensic Value |
+|---|---|---|
+| Postfix SMTP log | Email gửi từ linhntt, IP 185.220.101.47 | IP thật của attacker |
+| Roundcube log | Session từ IP nước ngoài | Xác nhận attacker gửi |
+| Dovecot Sent folder | Email BEC trong Sent Items | Nội dung lừa đảo |
+| Wazuh alert | Outbound email từ foreign IP | Alert tự động |
+
+---
+
+## PHASE 6 — COVERING TRACKS (Ngày 3, 14:30)
+
+### Mục tiêu
+Attacker xóa bằng chứng trong mailbox chị Linh.
+
+### Kỹ thuật sử dụng
+- **MITRE T1070.008** — Clear Mailbox Data
+
+### Hành động (qua Roundcube, session attacker)
+
+1. Xóa email cảnh báo bảo mật từ hệ thống
+2. Xóa email BEC trong Sent Items
+3. Empty Trash folder
+
+### Dấu vết sinh ra (IOC Phase 6)
+*Quan trọng: Mailbox audit log KHÔNG THỂ xóa được*
+
+| Log Source | Nội dung | Forensic Value |
+|---|---|---|
+| Dovecot audit log | Delete events ghi nhận đầy đủ | Chain of custody |
+| Postfix log | Email đã gửi vẫn còn trong log | Không thể xóa |
+| Wazuh alert | Mass delete event | Alert tự động |
+| iRedAdmin audit | Toàn bộ thao tác của session | Timeline đầy đủ |
+
+---
+
+## QUY TRÌNH ĐIỀU TRA TỪ KALI (113 jump-kali)
+
+### Bước 1 — Thu thập chứng cứ
+
+```bash
+# SSH vào mail server
+ssh root@10.71.119.51
+
+# Export email gốc (.eml)
+find /var/vmail/sakuratech.local/linhntt/ -name "*.eml" -newer /tmp/incident_time
+
+# Hash chứng cứ (chain of custody)
+md5sum suspicious_email.eml > suspicious_email.eml.md5
+sha256sum suspicious_email.eml > suspicious_email.eml.sha256
+
+# Collect logs
+cp /var/log/mail.log /tmp/evidence/
+cp /var/log/dovecot.log /tmp/evidence/
+cp /var/log/nginx/access.log /tmp/evidence/
+```
+
+### Bước 2 — Phân tích Email Header
+
+```bash
+# Cài công cụ phân tích
+apt install -y emailheader
+
+# Parse header từ .eml file
+cat suspicious_email.eml | grep -A 50 "Received:"
+
+# Truy vết chuỗi Received (đọc từ dưới lên)
+# Received: from mail.sakura-vendor.com (185.220.101.47)
+# → IP nguồn thật của attacker
+```
+
+**Tool online để demo trong báo cáo:**
+- Google Admin Toolbox: `toolbox.googleapps.com/apps/messageheader`
+- MXToolbox: `mxtoolbox.com/EmailHeaders.aspx`
+
+### Bước 3 — Truy vết IP Attacker
+
+```bash
+# WHOIS lookup
+whois 185.220.101.47
+
+# GeoIP lookup
+curl https://ipinfo.io/185.220.101.47/json
+
+# Check reputation
+# → Tra cứu trên VirusTotal, Cisco Talos, AbuseIPDB
+```
+
+**Kết quả điều tra:**
+```
+IP: 185.220.101.47
+ASN: AS24940 (Hetzner Online)
+Country: Germany (DE)
+Type: Tor exit node
+Reputation: MALICIOUS (AbuseIPDB: 95% confidence)
+```
+
+### Bước 4 — Kiểm tra SPF/DKIM/DMARC
+
+```bash
+# Kiểm tra SPF record của domain giả
+dig TXT sakura-vendor.com
+
+# Kiểm tra DKIM
+dig TXT default._domainkey.sakura-vendor.com
+
+# Kiểm tra DMARC
+dig TXT _dmarc.sakura-vendor.com
+```
+
+**Kết quả:**
+```
+SPF:   FAIL — domain not authorized to send
+DKIM:  FAIL — no signature found
+DMARC: NONE — policy not configured
+```
+
+### Bước 5 — Tái dựng Timeline
+
+```
+[Ngày 1 — 09:00] Email phishing gửi từ 185.220.101.47
+                  → sakura-vendor.com (typosquat)
+                  → SPF/DKIM/DMARC: FAIL
+
+[Ngày 1 — 09:15] linhntt@sakuratech.local mở email
+                  → Click link http://login-sakura-vendor.com
+                  → DNS query logged
+
+[Ngày 1 — 10:30] Login từ 185.220.101.47 vào mailbox linhntt
+                  → Impossible travel: VN (09:15) → EU (10:30)
+                  → 2 sessions đồng thời
+
+[Ngày 1 — 11:00] Mail rule tạo: auto-forward tài chính ra ngoài
+                  → Forward đến attacker@protonmail.com
+
+[Ngày 3 — 14:00] Email BEC gửi từ mailbox linhntt
+                  → IP nguồn: 185.220.101.47 (không phải nội bộ)
+                  → Nội dung: yêu cầu chuyển khoản
+
+[Ngày 3 — 14:30] Mass delete trong mailbox linhntt
+                  → Xóa evidence — nhưng audit log vẫn còn
+```
+
+---
+
+## MITRE ATT&CK MAPPING
+
+| Phase | Technique ID | Technique Name |
+|---|---|---|
+| 1 | T1566.002 | Spearphishing Link |
+| 2 | T1598 | Phishing for Information |
+| 3 | T1078 | Valid Accounts |
+| 4 | T1114.003 | Email Forwarding Rule |
+| 4 | T1564.008 | Email Hiding Rules |
+| 5 | T1586.002 | Compromise Email Accounts |
+| 6 | T1070.008 | Clear Mailbox Data |
+
+---
+
+## IOC TỔNG HỢP
+
+```
+# Domains
+sakura-vendor.com          (typosquat phishing sender)
+login-sakura-vendor.com    (phishing landing page)
+
+# IPs
+185.220.101.47             (attacker IP — Tor exit node, Germany)
+
+# Emails
+support@sakura-vendor.com  (phishing sender)
+attacker@protonmail.com    (forward destination)
+
+# Indicators
+SPF: FAIL on sakura-vendor.com
+DKIM: FAIL on sakura-vendor.com
+Impossible travel: VN → EU in 75 minutes
+Mail rule: auto-forward keywords tài chính
+```
+
+---
+
+## WAZUH CUSTOM RULES
+
+Thêm vào `/var/ossec/etc/rules/local_rules.xml` trên Wazuh server:
+
+```xml
+<!-- Rule: Impossible Travel Detection -->
+<rule id="100001" level="12">
+  <if_sid>5501</if_sid>
+  <match>Login</match>
+  <regex>rip=185\.220\.101\.</regex>
+  <description>Suspicious login from known Tor exit node</description>
+  <group>authentication_failed,pci_dss_10.2.4,</group>
+</rule>
+
+<!-- Rule: Suspicious Mail Forward Rule -->
+<rule id="100002" level="10">
+  <if_sid>5501</if_sid>
+  <match>sieve</match>
+  <match>fileinto\|redirect</match>
+  <description>New mail forwarding rule created</description>
+  <group>mail,suspicious,</group>
+</rule>
+
+<!-- Rule: BEC Detection — External IP sending internal mail -->
+<rule id="100003" level="14">
+  <if_sid>5501</if_sid>
+  <match>postfix/smtp</match>
+  <regex>from=.*sakuratech\.local.*relay=.*185\.220</regex>
+  <description>Internal email sent from external IP — possible BEC</description>
+  <group>mail,bec,high_severity,</group>
+</rule>
+```
+
+---
+
+## CHECKLIST HOÀN THÀNH
+
+### Kỹ thuật
+- [x] iRedMail 1.8.1 cài trên 107
+- [x] User linhntt, ducmh tạo xong
+- [x] Roundcube webmail hoạt động
+- [x] Gửi/nhận email nội bộ thành công
+- [ ] GoPhish cài trên 101
+- [ ] Landing page tracking
+- [ ] Wazuh agent trên 107
+- [ ] Script simulate Phase 3-6
+- [ ] Wazuh custom rules
+- [ ] Test toàn bộ kịch bản end-to-end
+
+### Báo cáo
+- [ ] Chương 1 — Giới thiệu
+- [ ] Chương 2 — Cơ sở lý thuyết
+- [ ] Chương 3 — Email Header
+- [ ] Chương 4 — SPF/DKIM/DMARC
+- [ ] Chương 5 — Tội phạm email
+- [ ] Chương 6 — Quy trình forensics
+- [ ] Chương 7 — Kịch bản kiểm thử
+- [ ] Chương 8 — Thu thập chứng cứ
+- [ ] Chương 9 — Phương pháp truy vết
+- [ ] Chương 10 — Kết luận
+
+---
+
+*Last updated: 25/05/2026 — Lab environment: Proxmox 9.1.9 / ITLabThuduc*

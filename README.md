@@ -102,20 +102,215 @@ lab/
 └── DEPLOYMENT_GUIDE.md  Huong dan cai dat chi tiet
 ```
 
+## Tai khoan mail
+
+| Email | Mat khau | Vai tro |
+|-------|----------|---------|
+| postmaster@sakuratech.local | Intern#2026 | Admin iRedMail |
+| linhntt@sakuratech.local | Linhktsakura120 | Ke toan truong (nan nhan) |
+| ducmh@sakuratech.local | CEO@2026! | CEO gia (attacker dung spoof) |
+| phongketoan@sakuratech.local | Ketoan@2026! | Phong ke toan (Case 2 BEC) |
+
+## Web Services
+
+| Service | URL | Username | Password |
+|---------|-----|----------|----------|
+| iRedAdmin | https://10.10.50.20/iredadmin | postmaster@sakuratech.local | Intern#2026 |
+| Roundcube Webmail | https://10.10.50.20/mail | linhntt@sakuratech.local | Linhktsakura120 |
+| GoPhish Admin | https://10.10.50.10:3333 | admin | (xem log lan chay gan nhat) |
+| Wazuh Dashboard | https://172.16.30.100 | admin | WazuhLab2026! |
+| Proxmox GUI | https://192.168.1.10:8006 | root | - |
+| pfSense GUI | https://192.168.1.200:4443 | admin | - |
+
+## Active Directory
+
+| Item | Value |
+|------|-------|
+| Domain | sakuratech.local |
+| Domain Controller | win-dc (172.16.21.100) |
+| Admin | SAKURATECH\Administrator |
+| Admin Password | Intern#2026 |
+| User linhntt | linhntt@sakuratech.local |
+| User Password | Linhktsakura120 |
+
+## Database (iRedMail MariaDB)
+
+| Item | Value |
+|------|-------|
+| MySQL root password | Intern#2026 |
+
+## VPN
+
+| Item | Value |
+|------|-------|
+| DuckDNS Domain | soc-networklab.duckdns.org |
+| VPN User | vpnuser |
+| Protocol | TCP 443 (primary) / UDP 1194 |
+
+## Cau truc lab — VM chi tiet
+
+| VM | ID | IP | OS | Role | Wazuh Agent |
+|----|----|----|----|------|-------------|
+| dmz-nginx | CT101 | 10.10.50.10 | Ubuntu 24.04 | GoPhish + Landing Page | ✅ |
+| fw-pfsense | VM102 | 10.10.50.1 / 172.16.0.1 | pfSense 2.7 | External Firewall | ❌ |
+| mgmt-wazuh | VM103 | 172.16.30.100 | Ubuntu 22.04 | Wazuh SIEM | - |
+| dmz-mail | CT107 | 10.10.50.20 | Ubuntu 24.04 | iRedMail 1.8.1 | ✅ |
+| dmz-app | CT108 | 10.10.50.30 | Ubuntu 24.04 | (chua dung) | ⏳ |
+| srv-mariadb | CT109 | 172.16.20.x | Ubuntu 24.04 | MariaDB | ⏳ |
+| fw-mikrotik | VM110 | 172.16.0.2 | MikroTik | Internal Firewall/VLAN | ❌ |
+| bkp-server | CT111 | - | Ubuntu 24.04 | Backup | ⏳ |
+| prtg-monitor | VM112 | 172.16.30.101 | - | PRTG Monitor | ⏳ |
+| jump-kali | VM113 | 172.16.30.102 | Kali Linux | Forensics Jump PC | ✅ |
+| win-dc | VM115 | 172.16.21.100 | Windows Server 2022 | AD DC sakuratech.local | ✅ |
+| ws-linhntt | VM120 | 172.16.23.101 | Windows 10 Pro | Victim Workstation | ✅ |
+
+## VM can bat khi thuc nghiem
+
+### Case 1
+pfsense + mikrotik + dmz-mail + dmz-nginx + ws-linhntt + win-dc + wazuh + kali
+**RAM uoc tinh: ~16GB**
+
+### Case 2
+pfsense + mikrotik + dmz-mail + win-dc + ws-linhntt + wazuh + kali
+**RAM uoc tinh: ~16GB**
+
+## Kich ban 2 Case
+
+### Case 1 — Technical Attack (Spear Phishing + Reverse Shell)
+
+```
+Phase 1 (09:00): GoPhish gui email phishing tu sakura-vendor.com → linhntt
+Phase 2 (09:15): linhntt click link → landing page → GoPhish log IP, timestamp
+Phase 3 (10:30): Reverse shell ve Kali → whoami → SAKURATECH\linhntt
+Phase 4 (11:00): Wazuh bat alert — suspicious outbound connection
+                 → Dieu tra: network log, process tree, Windows Event Log
+```
+
+### Case 2 — BEC Fraud (Financial)
+
+```
+Attacker (tu mailbox linhntt da chiem) gui email den phongketoan
+→ Noi dung: "Nha cung cap doi tai khoan ngan hang, chuyen khoan gap"
+→ Email tu dia chi that linhntt@sakuratech.local
+→ Postfix log: email gui tu IP nuoc ngoai (185.220.101.47)
+→ Dieu tra: email header, SPF/DKIM FAIL, impossible travel
+```
+
+## Tien do ky thuat
+
+### ✅ Da hoan thanh
+- iRedMail 1.8.1 cai tren `CT107` — chay on dinh
+- 4 mail accounts tao xong
+- GoPhish cai tren `CT101` — gui email thanh cong
+- Fake IP headers (X-Originating-IP, X-Forwarded-For, X-Source-IP, X-Mailer)
+- Phase 1 — Email phishing gui thanh cong den linhntt
+- Phase 2 — Victim click link, GoPhish tracking event logged
+- Landing page "CANH BAO BAO MAT" hoat dong
+- AD `sakuratech.local` setup tren `win-dc`
+- `ws-linhntt` join domain
+- Wazuh agents installed tren 5 node
+- pfSense + MikroTik + VLAN routing
+- VPN OpenVPN qua DuckDNS
+- Repo GitHub updated voi IP thuc te
+
+### ⏳ Dang lam
+- Wazuh Manager `VM103` dang cai lai (bi loi truoc do)
+
+### ❌ Chua lam
+- Verify 5 Wazuh agents ket noi ve manager
+- Deploy 12 custom Wazuh rules tu repo
+- Reverse shell (dang tim tai lieu)
+- Chay kich ban end-to-end Phase 1-6
+- Case 2 — BEC fraud simulation
+- Dieu tra tu Kali (phan tich header, log, truy IP)
+
+## Tien do bao cao
+
+| Chuong | Noi dung | Status |
+|--------|----------|--------|
+| Chuong 1 | Gioi thieu de tai | ❌ |
+| Chuong 2 | Co so ly thuyet (SMTP, IMAP, POP3, RFC 5322) | ❌ |
+| Chuong 3 | Email Header Analysis | ❌ |
+| Chuong 4 | SPF / DKIM / DMARC | ❌ |
+| Chuong 5 | Phan loai to pham email | ❌ |
+| Chuong 6 | Quy trinh Digital Forensics | ❌ |
+| Chuong 7 | Case Study — Kich ban kiem thu | ❌ |
+| Chuong 8 | Thu thap chung cu | ❌ |
+| Chuong 9 | Phuong phap truy vet | ❌ |
+| Chuong 10 | Ket luan + Khuyen nghi | ❌ |
+
+## IOC Tong hop
+
+```
+Domains:
+  sakura-vendor.com         (typosquat phishing sender)
+  login-sakura-vendor.com   (phishing landing page)
+
+IPs:
+  185.220.101.47            (attacker — Tor exit node, Germany)
+  103.45.67.89              (fake relay hop 1)
+  45.33.32.156              (fake relay hop 2)
+
+Emails:
+  support@sakura-vendor.com (phishing sender)
+  attacker@protonmail.com   (forward destination)
+
+SPF/DKIM/DMARC:
+  sakura-vendor.com → SPF FAIL, DKIM FAIL, DMARC NONE
+
+Behavioral:
+  Impossible travel: VN (09:15) → Germany (10:30) — 75 phut
+  Mail forwarding rule: keywords "thanh toan", "chuyen khoan"
+  Mass delete event sau Phase 5
+```
+
+## MITRE ATT&CK Mapping
+
+| Phase | Technique | ID |
+|-------|-----------|-----|
+| 1 | Spearphishing Link | T1566.002 |
+| 2 | Phishing for Information | T1598 |
+| 3 | Valid Accounts | T1078 |
+| 4 | Email Forwarding Rule | T1114.003 |
+| 4 | Email Hiding Rules | T1564.008 |
+| 5 | Compromise Email Accounts | T1586.002 |
+| 6 | Clear Mailbox Data | T1070.008 |
+
+## Wazuh Custom Rules
+
+12 rules tuong thich voi cac giai doan tan cong:
+
+| Rule | Mo ta | Muc do |
+|------|-------|--------|
+| 100001 | Tor exit node login | HIGH |
+| 100002 | Tor exit node IMAP | HIGH |
+| 100003 | Compromised account access | CRITICAL |
+| 100004 | Mail forwarding rule | CRITICAL |
+| 100005 | BEC email from foreign IP | CRITICAL |
+| 100006 | Phishing domain detected | MEDIUM |
+| 100007 | SPF/DKIM/DMARC fail | MEDIUM |
+| 100008 | Suspicious sender domain | LOW |
+| 100009 | Webmail from foreign IP | MEDIUM |
+| 100010 | Mass email deletion | LOW |
+| 100011 | Brute force attempt | HIGH |
+| 100012 | External forward detected | MEDIUM |
+
+## Link quan trong
+
+| Resource | Link |
+|----------|------|
+| GitHub Repo | https://github.com/haizzdungnay/Demo-Mail-Phising |
+| Wazuh Docs | https://documentation.wazuh.com |
+| iRedMail Docs | https://docs.iredmail.org |
+| GoPhish Docs | https://docs.getgophish.com |
+| MITRE ATT&CK | https://attack.mitre.org |
+| LetsDefend | https://letsdefend.io |
+
 ## Cai dat nhanh
 
-### 1. Tao 6 VMs tren Proxmox/VMware
+### 1. Tao VMs tren Proxmox/VMware
 
-| VM | IP | OS | Role |
-|----|----|----|------|
-| dmz-mail | 10.10.50.20 | Ubuntu 24.04 | iRedMail |
-| dmz-nginx | 10.10.50.10 | Ubuntu 24.04 | GoPhish |
-| mgmt-wazuh | 172.16.30.100 | Ubuntu 22.04 | Wazuh SIEM |
-| win-dc | 172.16.21.100 | Windows Server 2022 | AD DC sakuratech.local |
-| ws-linhntt | 172.16.23.101 | Windows 10 Pro | Victim Workstation |
-| jump-kali | 172.16.30.102 | Kali Linux | Forensics |
-| fw-pfsense | multi | pfSense 2.7 | Firewall |
-| fw-mikrotik | 172.16.0.2 | MikroTik | Internal Firewall/VLAN |
+Xem bang VM chi tiet o muc "Cau truc lab — VM chi tiet" ben tren.
 
 ### 2. Chay setup scripts
 
@@ -140,7 +335,7 @@ Import landing page tu `lab/gophish/landing_pages/`.
 ### 4. Chay mo phong
 
 ```bash
-# Tren 107 dmz-mail:
+# Tren CT107 dmz-mail:
 bash lab/simulation/run_all_phases.sh
 
 # Hoac tung phase:
@@ -151,7 +346,7 @@ bash run_all_phases.sh --phase 2
 ### 5. Dieu tra so
 
 ```bash
-# Tren 113 jump-kali:
+# Tren VM113 jump-kali:
 cd /opt/forensics
 forensic_toolkit.sh all
 
@@ -160,79 +355,6 @@ forensic_toolkit.sh collect
 forensic_toolkit.sh timeline
 forensic_toolkit.sh report
 ```
-
-## Cong cu trong lab
-
-| Cong cu | Dia chi | Mat khau | Chuc nang |
-|---------|---------|----------|-----------|
-| GoPhish Admin | https://10.10.50.10:3333 | admin/gophish | Quan ly campaign |
-| iRedAdmin | https://10.10.50.20/iredadmin | postmaster/Intern#2026 | Quan ly mail |
-| Roundcube | https://10.10.50.20/mail | linhntt/Linhktsakura120 | Webmail |
-| Wazuh | https://172.16.30.100 | admin/WazuhLab2026! | SIEM dashboards |
-| Kali Tools | 172.16.30.102 | root/(ban dat) | Forensics |
-| win-dc | 172.16.21.100 | SAKURATECH\Administrator/Intern#2026 | AD Domain Controller |
-| ws-linhntt | 172.16.23.101 | SAKURATECH\linhntt/Linhktsakura120 | Victim Workstation |
-
-## Danh sach tai khoan mail
-
-| Email | Mat khau | Vai tro |
-|-------|----------|---------|
-| postmaster@sakuratech.local | Intern#2026 | Admin |
-| linhntt@sakuratech.local | Linhktsakura120 | Ke toan truong (nan nhan) |
-| ducmh@sakuratech.local | CEO@2026! | CEO |
-| phongketoan@sakuratech.local | Ketoan@2026! | Phong ke toan |
-
-## Wazuh Custom Rules
-
-12 rules tuong thich voi cac giai doan tan cong:
-
-| Rule | Mo ta | Muc do |
-|------|-------|--------|
-| 100001 | Tor exit node login | HIGH |
-| 100002 | Tor exit node IMAP | HIGH |
-| 100003 | Compromised account access | CRITICAL |
-| 100004 | Mail forwarding rule | CRITICAL |
-| 100005 | BEC email from foreign IP | CRITICAL |
-| 100006 | Phishing domain detected | MEDIUM |
-| 100007 | SPF/DKIM/DMARC fail | MEDIUM |
-| 100008 | Suspicious sender domain | LOW |
-| 100009 | Webmail from foreign IP | MEDIUM |
-| 100010 | Mass email deletion | LOW |
-| 100011 | Brute force attempt | HIGH |
-| 100012 | External forward detected | MEDIUM |
-
-## IOC Tong hop
-
-```
-Domains:
-  sakura-vendor.com        (phishing sender)
-  login-sakura-vendor.com  (phishing landing)
-  attacker@protonmail.com   (forward destination)
-
-IPs:
-  185.220.101.47          (attacker — Tor exit, Germany)
-
-Auth failures:
-  SPF: FAIL on sakura-vendor.com
-  DKIM: FAIL on sakura-vendor.com
-  DMARC: NONE on sakura-vendor.com
-
-Behavioral:
-  Impossible travel: VN -> Germany in 75 min
-  Mail rule: forward "thanh toan", "chuyen khoan"
-```
-
-## MITRE ATT&CK
-
-| Phase | Technique | ID |
-|-------|-----------|-----|
-| 1 | Spearphishing Link | T1566.002 |
-| 2 | Phishing for Information | T1598 |
-| 3 | Valid Accounts | T1078 |
-| 4 | Email Forwarding Rule | T1114.003 |
-| 4 | Email Hiding Rules | T1564.008 |
-| 5 | Compromise Email Accounts | T1586.002 |
-| 6 | Clear Mailbox Data | T1070.008 |
 
 ## Bao mat
 
