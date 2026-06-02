@@ -118,24 +118,21 @@ lab/
 
 ## Tai khoan mail
 
-> ⚠️ Cac mat khau that duoc luu trong file rieng (khong commit len Git).
-> README chi hien thi placeholder. Xem DEPLOYMENT_GUIDE.md (ban noi bo) de biet chi tiet.
-
 | Email | Mat khau | Vai tro |
 |-------|----------|---------|
-| postmaster@sakuratech.local | `<admin-password>` | Admin iRedMail |
-| linhntt@sakuratech.local | `<user-password>` | Ke toan truong (nan nhan) |
-| ducmh@sakuratech.local | `<ceo-password>` | CEO gia (attacker dung spoof) |
-| phongketoan@sakuratech.local | `<accounting-password>` | Phong ke toan (Case 2 BEC) |
+| postmaster@sakuratech.local | Intern#2026 | Admin iRedMail |
+| linhntt@sakuratech.local | Linhktsakura120 | Ke toan truong (nan nhan) |
+| ducmh@sakuratech.local | CEO@2026! | CEO gia (attacker dung spoof) |
+| phongketoan@sakuratech.local | Ketoan@2026! | Phong ke toan (Case 2 BEC) |
 
 ## Web Services
 
 | Service | URL | Username | Password |
 |---------|-----|----------|----------|
-| iRedAdmin | https://10.10.50.20/iredadmin | postmaster@sakuratech.local | `<admin-password>` |
-| Roundcube Webmail | https://10.10.50.20/mail | linhntt@sakuratech.local | `<user-password>` |
+| iRedAdmin | https://10.10.50.20/iredadmin | postmaster@sakuratech.local | Intern#2026 |
+| Roundcube Webmail | https://10.10.50.20/mail | linhntt@sakuratech.local | Linhktsakura120 |
 | GoPhish Admin | https://10.10.50.10:3333 | admin | (xem log lan chay gan nhat) |
-| Wazuh Dashboard | https://172.16.30.100 | admin | `<wazuh-password>` |
+| Wazuh Dashboard | https://172.16.30.100 | admin | WazuhLab2026! |
 | Proxmox GUI | https://192.168.1.10:8006 | root | - |
 | pfSense GUI | https://192.168.1.200:4443 | admin | - |
 
@@ -146,15 +143,15 @@ lab/
 | Domain | sakuratech.local |
 | Domain Controller | win-dc (172.16.21.100) |
 | Admin | SAKURATECH\Administrator |
-| Admin Password | `<admin-password>` |
+| Admin Password | Intern#2026 |
 | User linhntt | linhntt@sakuratech.local |
-| User Password | `<user-password>` |
+| User Password | Linhktsakura120 |
 
 ## Database (iRedMail MariaDB)
 
 | Item | Value |
 |------|-------|
-| MySQL root password | `<admin-password>` |
+| MySQL root password | Intern#2026 |
 
 ## VPN
 
